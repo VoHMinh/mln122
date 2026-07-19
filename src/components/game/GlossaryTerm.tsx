@@ -19,6 +19,7 @@ type GlossaryTermProps = {
   term: GlossaryKey;
   children?: ReactNode;
   className?: string;
+  preferredPlacement?: 'auto' | 'top' | 'bottom';
 };
 
 type TooltipPosition = {
@@ -46,9 +47,11 @@ export default function GlossaryTerm({
   term,
   children,
   className = '',
+  preferredPlacement = 'auto',
 }: GlossaryTermProps) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const tooltipId = useId();
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -62,8 +65,18 @@ export default function GlossaryTerm({
   const entry = GLOSSARY[term];
 
   const close = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     setOpen(false);
     setPinned(false);
+  }, []);
+
+  const cancelScheduledClose = useCallback(() => {
+    if (closeTimerRef.current === null) return;
+    window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
   }, []);
 
   const measure = useCallback(() => {
@@ -78,15 +91,26 @@ export default function GlossaryTerm({
       Math.max(VIEWPORT_GAP, anchorRect.left + anchorRect.width / 2 - width / 2),
     );
     const canPlaceAbove = anchorRect.top >= tooltipHeight + VIEWPORT_GAP * 2;
+    const placement =
+      preferredPlacement === 'auto'
+        ? canPlaceAbove
+          ? 'top'
+          : 'bottom'
+        : preferredPlacement;
+    const rawTop =
+      placement === 'top'
+        ? anchorRect.top - tooltipHeight - 9
+        : anchorRect.bottom + 9;
     setPosition({
       left,
-      top: canPlaceAbove
-        ? anchorRect.top - tooltipHeight - 9
-        : anchorRect.bottom + 9,
+      top: Math.min(
+        window.innerHeight - tooltipHeight - VIEWPORT_GAP,
+        Math.max(VIEWPORT_GAP, rawTop),
+      ),
       width,
-      placement: canPlaceAbove ? 'top' : 'bottom',
+      placement,
     });
-  }, [isCompact]);
+  }, [isCompact, preferredPlacement]);
 
   useEffect(() => {
     if (!open || !mounted) return;
@@ -116,14 +140,27 @@ export default function GlossaryTerm({
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('resize', onViewportChange);
       window.removeEventListener('scroll', onViewportChange, true);
+      cancelScheduledClose();
     };
-  }, [close, isCompact, measure, mounted, open]);
+  }, [cancelScheduledClose, close, isCompact, measure, mounted, open]);
 
-  const show = () => setOpen(true);
+  const show = () => {
+    cancelScheduledClose();
+    setOpen(true);
+  };
   const hideIfTransient = () => {
-    if (!pinned) setOpen(false);
+    if (pinned) return;
+    cancelScheduledClose();
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      setPinned((currentPinned) => {
+        if (!currentPinned) setOpen(false);
+        return currentPinned;
+      });
+    }, 140);
   };
   const togglePinned = () => {
+    cancelScheduledClose();
     setPinned((value) => {
       const next = !value;
       setOpen(next);

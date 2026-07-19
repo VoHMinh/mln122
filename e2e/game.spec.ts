@@ -157,6 +157,35 @@ test('opens and closes a glossary definition without cursor targeting it', async
   await expect(page.getByRole('tooltip', { name: 'Giải thích: Năng suất' })).not.toBeVisible();
 });
 
+test('keeps allocation glossary placement stable and restores the native cursor in the tour', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop placement and native custom-cursor behavior are covered here.');
+
+  await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
+  await page.getByLabel('Tên hiển thị').fill('Minh');
+  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  await expect(page.getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa/ })).toBeVisible();
+  await expect(page.locator('.target-cursor-wrapper')).toHaveCSS('display', 'none');
+  await expect(page.getByRole('button', { name: 'Tiếp theo' })).toHaveCSS('cursor', 'pointer');
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
+  await page.getByRole('button', { name: 'Bắt đầu phòng' }).click();
+  await page.getByRole('button', { name: 'Bắt đầu giai đoạn 1' }).click();
+
+  const education = page.getByRole('button', { name: /Giáo dục & nhân lực/ }).first();
+  await education.hover();
+  await expect(page.getByRole('tooltip', {
+    name: 'Giải thích: Giáo dục & nhân lực',
+  })).toHaveClass(/is-bottom/);
+  await page.mouse.move(10, 10);
+
+  const infrastructure = page.getByRole('button', {
+    name: /Hạ tầng số & công nghiệp/,
+  }).first();
+  await infrastructure.hover();
+  await expect(page.getByRole('tooltip', {
+    name: 'Giải thích: Hạ tầng số & công nghiệp',
+  })).toHaveClass(/is-top/);
+});
+
 test('stops at the round report until the player continues', async ({ page }) => {
   await enterFirstRound(page);
   await page.getByRole('button', { name: 'Chia đều' }).click();

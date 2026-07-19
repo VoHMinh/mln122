@@ -63,6 +63,21 @@
 html.target-cursor-native-hidden,
 html.target-cursor-native-hidden * { cursor: none !important; }
 
+html.game-onboarding-open,
+html.game-onboarding-open *,
+html:has(.game2-onboarding),
+html:has(.game2-onboarding) * { cursor: auto !important; }
+
+html.game-onboarding-open button,
+html.game-onboarding-open [role='button'],
+html:has(.game2-onboarding) button,
+html:has(.game2-onboarding) [role='button'] { cursor: pointer !important; }
+
+html.game-onboarding-open .target-cursor-wrapper,
+html.game-onboarding-open .target-cursor-frame,
+html:has(.game2-onboarding) .target-cursor-wrapper,
+html:has(.game2-onboarding) .target-cursor-frame { display: none !important; }
+
 @media (pointer: coarse), (prefers-reduced-motion: reduce) {
   .target-cursor-wrapper,
   .target-cursor-frame { display: none; }

@@ -28,6 +28,13 @@ const AREA_ICONS = {
   fdi: Handshake,
 };
 
+const AREA_GLOSSARY = {
+  education: { term: 'education', placement: 'bottom' },
+  innovation: { term: 'innovation', placement: 'bottom' },
+  infrastructure: { term: 'infrastructure', placement: 'top' },
+  fdi: { term: 'fdi', placement: 'top' },
+} as const;
+
 function formatValue(value: number) {
   return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(value);
 }
@@ -224,6 +231,7 @@ export default function RoundPlay() {
             {INVESTMENT_AREAS.map((area) => {
               const key = area.key as keyof RoundAllocation;
               const Icon = AREA_ICONS[key];
+              const glossary = AREA_GLOSSARY[key];
               const value = allocations[key];
               return (
                 <div key={key} className="game2-allocation-control">
@@ -233,13 +241,12 @@ export default function RoundPlay() {
                     </span>
                     <div>
                       <h3>
-                        {key === 'innovation' ? (
-                          <GlossaryTerm term="innovation">{area.label}</GlossaryTerm>
-                        ) : key === 'fdi' ? (
-                          <GlossaryTerm term="fdi">{area.label}</GlossaryTerm>
-                        ) : key === 'education' ? (
-                          <GlossaryTerm term="educationDelay">{area.label}</GlossaryTerm>
-                        ) : area.label}
+                        <GlossaryTerm
+                          term={glossary.term}
+                          preferredPlacement={glossary.placement}
+                        >
+                          {area.label}
+                        </GlossaryTerm>
                       </h3>
                       <p>{area.description}</p>
                     </div>

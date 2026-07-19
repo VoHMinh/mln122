@@ -7,7 +7,9 @@ export type GlossaryKey =
   | 'absorption'
   | 'resilience'
   | 'debt'
+  | 'education'
   | 'innovation'
+  | 'infrastructure'
   | 'fdi'
   | 'dependency'
   | 'educationDelay'
@@ -103,6 +105,19 @@ export const GLOSSARY: Record<GlossaryKey, GlossaryEntry> = {
       'Chỉ được vay tối đa 50% ngân sách cơ sở; kỳ sau phải trả 120%. Nợ còn lại bị trừ khỏi năng suất khi tính điểm cuối.',
     formula: 'Nợ đến hạn vòng sau = 1,2 x (Khoản vay + Nợ do chiến lược).',
   },
+  education: {
+    label: 'Giáo dục & nhân lực',
+    short: 'Khoản đầu tư tạo năng lực hấp thụ ở giai đoạn kế tiếp.',
+    definition:
+      'Giáo dục & nhân lực mô phỏng đào tạo kỹ sư, kỹ năng số và năng lực tổ chức để tiếp nhận, vận hành rồi cải tiến công nghệ.',
+    increase:
+      'Dành RP cho giáo dục từ các vòng đầu; phần đầu tư của vòng hiện tại sẽ chín và tạo tác động ở vòng kế tiếp.',
+    benefit:
+      'Tăng Hấp thụ, giảm thiệt hại khi thiếu nhân lực công nghệ lõi và giúp R&D hoặc chuyển giao công nghệ tạo hiệu quả thật.',
+    risk:
+      'Không tăng năng suất ngay trong cùng vòng. Đầu tư quá muộn ở vòng 4 gần như không còn thời gian để phát huy.',
+    formula: 'Hấp thụ vòng sau += 24 x tỷ trọng RP dành cho Giáo dục vòng này.',
+  },
   innovation: {
     label: 'R&D',
     short: 'Nghiên cứu và phát triển - động lực chính của năng suất và tự chủ.',
@@ -115,6 +130,19 @@ export const GLOSSARY: Record<GlossaryKey, GlossaryEntry> = {
     risk:
       'R&D dưới 20 RP trong lúc FDI vượt 50% tạo một kỳ rủi ro phụ thuộc.',
     formula: 'Đóng góp năng suất nền = 40 x tỷ trọng R&D.',
+  },
+  infrastructure: {
+    label: 'Hạ tầng số & công nghiệp',
+    short: 'Nền vận hành giúp tăng năng suất ngay và giữ hệ thống đứng vững trước cú sốc.',
+    definition:
+      'Hạ tầng bao gồm năng lực số, dữ liệu, logistics và nền sản xuất cần thiết để công nghệ mới hoạt động ổn định ở quy mô lớn.',
+    increase:
+      'Dành RP cho Hạ tầng số & công nghiệp hoặc chọn chiến lược củng cố nền vận hành và chuỗi cung ứng.',
+    benefit:
+      'Tạo năng suất trong vòng hiện tại và là nguồn tăng Chống chịu mạnh nhất trước gián đoạn dữ liệu hoặc chuỗi cung ứng.',
+    risk:
+      'Chỉ xây hạ tầng mà thiếu R&D và nhân lực có thể làm sản xuất mở rộng nhưng năng lực làm chủ vẫn mỏng.',
+    formula: 'Đóng góp nền: +30 x tỷ trọng Hạ tầng vào năng suất và +8 x tỷ trọng vào Chống chịu.',
   },
   fdi: {
     label: 'FDI',
@@ -177,7 +205,9 @@ export const GLOSSARY_ORDER: GlossaryKey[] = [
   'absorption',
   'resilience',
   'debt',
+  'education',
   'innovation',
+  'infrastructure',
   'fdi',
   'dependency',
   'educationDelay',
@@ -373,4 +403,3 @@ export const SHOCK_GUIDE: Array<{
     threshold: 'Tự chủ >= 26 giảm cú sốc xuống mức thấp.',
   },
 ];
-

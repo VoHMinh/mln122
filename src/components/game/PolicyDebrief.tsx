@@ -65,26 +65,28 @@ export default function PolicyDebrief() {
         })}
       </ol>
 
-      <div className="game2-debrief-reflection">
-        <GitBranch size={18} />
-        <div>
-          <span>Câu hỏi phản tư</span>
-          <p>
-            Quyết định nào tạo ra con số tốt nhất trước mắt nhưng đồng thời làm
-            giảm quyền lựa chọn của bạn ở chặng sau?
-          </p>
+      <footer className="game2-debrief-footer">
+        <div className="game2-debrief-reflection">
+          <GitBranch size={18} />
+          <div>
+            <span>Câu hỏi phản tư</span>
+            <p>
+              Quyết định nào tạo ra con số tốt nhất trước mắt nhưng đồng thời làm
+              giảm quyền lựa chọn của bạn ở chặng sau?
+            </p>
+          </div>
+          <CircleAlert size={17} />
         </div>
-        <CircleAlert size={17} />
-      </div>
 
-      <button
-        type="button"
-        disabled={isLoading}
-        onClick={completeGame}
-        className="game-primary-action game-cursor-target"
-      >
-        Xác định kết cục năm 2030 <ArrowRight size={17} />
-      </button>
+        <button
+          type="button"
+          disabled={isLoading}
+          onClick={completeGame}
+          className="game-primary-action game-cursor-target"
+        >
+          Xác định kết cục năm 2030 <ArrowRight size={17} />
+        </button>
+      </footer>
     </section>
   );
 }

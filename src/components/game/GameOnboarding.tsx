@@ -253,6 +253,13 @@ export default function GameOnboarding({
     onFinish();
   }, [onFinish]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const root = document.documentElement;
+    root.classList.add('game-onboarding-open');
+    return () => root.classList.remove('game-onboarding-open');
+  }, [isOpen]);
+
   const measure = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;

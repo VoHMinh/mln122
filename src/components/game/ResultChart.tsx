@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { type CSSProperties, useMemo, useEffect, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import type { ReferenceTrajectories } from '@/types';
@@ -74,45 +73,6 @@ function CustomTooltip({
   );
 }
 
-// Vietnamese custom legend
-function CustomLegend({
-  payload,
-}: {
-  payload?: Array<{
-    value: string;
-    color: string;
-    type: string;
-  }>;
-}) {
-  if (!payload) return null;
-
-  const nameMap: Record<string, string> = {
-    player: 'Quỹ đạo của bạn',
-    korea: 'Tham chiếu Hàn Quốc',
-    china: 'Tham chiếu Trung Quốc',
-    disrupted: 'Kịch bản đứt gãy',
-  };
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-      {payload.map((entry) => (
-        <div key={entry.value} className="flex items-center gap-1.5">
-          <div
-            className="h-2 w-4 rounded-sm"
-            style={{
-              backgroundColor: entry.color,
-              opacity: entry.type === 'dashed' ? 0.6 : 1,
-            }}
-          />
-          <span className="font-body text-xs text-[#8ea7af]">
-            {nameMap[entry.value] || entry.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Default reference data if API fails
 const FALLBACK_REFS: ReferenceTrajectories = {
   korea: [20, 45, 75, 95],
@@ -149,98 +109,103 @@ export default function ResultChart({ playerScores }: ResultChartProps) {
     }));
   }, [playerScores, refs]);
 
+  const compactPeriod = (period: string) => {
+    const [start, end] = period.split('-');
+    return start && end ? `${start}-${end.slice(-2)}` : period;
+  };
+
   return (
     <div className="w-full">
       <div className="game2-chart-heading mb-2 flex flex-wrap items-end justify-between gap-3">
         <div><p className="game-overline">Đối chiếu mô phỏng</p><h3 className="mt-1 font-display text-xl font-semibold text-[#eff7f8]">Quỹ đạo năng suất</h3></div>
         <p className="max-w-sm text-right text-[0.72rem] leading-5 text-[#819aa2]">Các tuyến tham chiếu là thang minh họa học tập, không phải chuỗi số liệu quốc gia.</p>
       </div>
-      <ResponsiveContainer width="100%" height={205}>
-        <LineChart
-          data={chartData}
-          margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(145,184,190,0.14)"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="wave"
-            stroke="#718992"
-            tick={{ fill: '#8ea7af', fontSize: 11, fontFamily: 'var(--font-body)' }}
-            axisLine={{ stroke: 'rgba(145,184,190,0.2)' }}
-          />
-          <YAxis
-            stroke="#718992"
-            tick={{ fill: '#8ea7af', fontSize: 11, fontFamily: 'var(--font-mono)' }}
-            axisLine={{ stroke: 'rgba(145,184,190,0.2)' }}
-            label={{
-              value: 'Điểm năng suất',
-              angle: -90,
-              position: 'insideLeft',
-              fill: '#8ea7af',
-              fontSize: 11,
-              fontFamily: 'var(--font-body)',
-            }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend content={<CustomLegend />} />
+      <div className="game2-chart-plot">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 8, right: 14, left: 0, bottom: 4 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(145,184,190,0.14)"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="wave"
+              stroke="#718992"
+              tick={{ fill: '#8ea7af', fontSize: 10, fontFamily: 'var(--font-body)' }}
+              tickFormatter={compactPeriod}
+              tickMargin={8}
+              height={28}
+              interval={0}
+              axisLine={{ stroke: 'rgba(145,184,190,0.2)' }}
+            />
+            <YAxis
+              width={34}
+              stroke="#718992"
+              tick={{ fill: '#8ea7af', fontSize: 10, fontFamily: 'var(--font-mono)' }}
+              axisLine={{ stroke: 'rgba(145,184,190,0.2)' }}
+            />
+            <Tooltip content={<CustomTooltip />} />
 
-          {/* Player line - thick, animated */}
-          <Line
-            type="monotone"
-            dataKey="player"
-            name="player"
-            stroke="#e9a35a"
-            strokeWidth={3}
-            dot={{ r: 5, fill: '#e9a35a', strokeWidth: 2, stroke: '#08151b' }}
-            activeDot={{ r: 7, fill: '#e9a35a' }}
-            animationDuration={1500}
-            animationEasing="ease-in-out"
-          />
+            <Line
+              type="monotone"
+              dataKey="player"
+              name="player"
+              stroke="#e9a35a"
+              strokeWidth={3}
+              dot={{ r: 4, fill: '#e9a35a', strokeWidth: 2, stroke: '#08151b' }}
+              activeDot={{ r: 6, fill: '#e9a35a' }}
+              animationDuration={1500}
+              animationEasing="ease-in-out"
+            />
 
-          {/* Korea reference */}
-          <Line
-            type="monotone"
-            dataKey="korea"
-            name="korea"
-            stroke="#3cc7bd"
-            strokeWidth={2}
-            strokeOpacity={0.7}
-            dot={{ r: 3, fill: '#3cc7bd' }}
-            animationDuration={1800}
-            animationEasing="ease-in-out"
-          />
+            <Line
+              type="monotone"
+              dataKey="korea"
+              name="korea"
+              stroke="#3cc7bd"
+              strokeWidth={2}
+              strokeOpacity={0.7}
+              dot={{ r: 3, fill: '#3cc7bd' }}
+              animationDuration={1800}
+              animationEasing="ease-in-out"
+            />
 
-          {/* China reference */}
-          <Line
-            type="monotone"
-            dataKey="china"
-            name="china"
-            stroke="#7ba7b7"
-            strokeWidth={2}
-            strokeOpacity={0.7}
-            dot={{ r: 3, fill: '#7ba7b7' }}
-            animationDuration={2000}
-            animationEasing="ease-in-out"
-          />
+            <Line
+              type="monotone"
+              dataKey="china"
+              name="china"
+              stroke="#7ba7b7"
+              strokeWidth={2}
+              strokeOpacity={0.7}
+              dot={{ r: 3, fill: '#7ba7b7' }}
+              animationDuration={2000}
+              animationEasing="ease-in-out"
+            />
 
-          {/* Disrupted reference - dashed */}
-          <Line
-            type="monotone"
-            dataKey="disrupted"
-            name="disrupted"
-            stroke="#c76e58"
-            strokeWidth={2}
-            strokeDasharray="8 4"
-            strokeOpacity={0.6}
-            dot={{ r: 3, fill: '#c76e58' }}
-            animationDuration={2200}
-            animationEasing="ease-in-out"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <Line
+              type="monotone"
+              dataKey="disrupted"
+              name="disrupted"
+              stroke="#c76e58"
+              strokeWidth={2}
+              strokeDasharray="8 4"
+              strokeOpacity={0.6}
+              dot={{ r: 3, fill: '#c76e58' }}
+              animationDuration={2200}
+              animationEasing="ease-in-out"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="game2-chart-legend" aria-label="Chú giải biểu đồ">
+        <span style={{ '--legend-color': '#e9a35a' } as CSSProperties}>Quỹ đạo của bạn</span>
+        <span style={{ '--legend-color': '#3cc7bd' } as CSSProperties}>Tham chiếu Hàn Quốc</span>
+        <span style={{ '--legend-color': '#7ba7b7' } as CSSProperties}>Tham chiếu Trung Quốc</span>
+        <span className="is-dashed" style={{ '--legend-color': '#c76e58' } as CSSProperties}>Kịch bản đứt gãy</span>
+      </div>
     </div>
   );
 }
