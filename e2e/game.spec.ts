@@ -79,12 +79,11 @@ async function playRound(
   await page.getByRole('button', { name: 'Xác nhận chính sách' }).click();
   await expect(page.getByText(`Báo cáo giai đoạn 0${round}`)).toBeVisible();
   await page.getByRole('button', {
-    name: round === 4 ? 'Tiến đến năm 2030' : `Sang giai đoạn ${round + 1}`,
+    name: round === 4 ? 'Xem tổng kết nhiệm kỳ' : `Sang giai đoạn ${round + 1}`,
   }).click();
 }
 
 async function finishTerm(page: Page) {
-  await page.getByRole('button', { name: 'Mở hồ sơ nhiệm kỳ' }).click();
   await page.getByRole('button', { name: 'Xác định kết cục năm 2030' }).click();
 }
 

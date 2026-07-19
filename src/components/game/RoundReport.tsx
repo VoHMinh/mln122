@@ -103,7 +103,7 @@ export default function RoundReport() {
           onClick={continueFromReport}
           className="game-primary-action game-cursor-target"
         >
-          {resolution.nextRound ? `Sang giai đoạn ${resolution.nextRound}` : 'Tiến đến năm 2030'}
+          {resolution.nextRound ? `Sang giai đoạn ${resolution.nextRound}` : 'Xem tổng kết nhiệm kỳ'}
           <ArrowRight size={17} />
         </button>
       </footer>

@@ -107,5 +107,13 @@ describe('game store report lifecycle', () => {
 
     expect(useGameStore.getState().session?.histories).toHaveLength(4);
     expect(useGameStore.getState().phase).toBe(GamePhase.DEBRIEF);
+
+    useGameStore.setState({
+      phase: GamePhase.ROUND_REPORT,
+      pendingResolution: remote.histories.at(-1)!,
+    });
+    useGameStore.getState().continueFromReport();
+
+    expect(useGameStore.getState().phase).toBe(GamePhase.DEBRIEF);
   });
 });

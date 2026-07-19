@@ -260,9 +260,10 @@ export const useGameStore = create<GameState & GameActions>()(
         if (pendingResolution.nextRound === null) {
           set({
             pendingResolution: null,
-            phase: GamePhase.COUNTDOWN,
+            phase: GamePhase.DEBRIEF,
             allocations: emptyAllocation(),
             borrowedAmount: 0,
+            error: null,
           });
           return;
         }
