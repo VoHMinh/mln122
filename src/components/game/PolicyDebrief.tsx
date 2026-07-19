@@ -3,6 +3,7 @@
 import { ArrowRight, CircleAlert, GitBranch, Network, Sparkles } from 'lucide-react';
 import { useGameStore } from '@/store/game-store';
 import { getPolicyStage } from '@/lib/game-scenarios';
+import GlossaryTerm from './GlossaryTerm';
 
 export default function PolicyDebrief() {
   const { session, completeGame, isLoading } = useGameStore();
@@ -31,10 +32,10 @@ export default function PolicyDebrief() {
       </header>
 
       <div className="game2-debrief-metrics">
-        <div><span>Năng suất</span><strong>{session.metrics.productivity.toFixed(1)}</strong></div>
-        <div><span>Tự chủ</span><strong>{session.metrics.autonomy.toFixed(1)}</strong></div>
-        <div><span>Hấp thụ</span><strong>{session.metrics.absorption.toFixed(1)}</strong></div>
-        <div><span>Nợ còn lại</span><strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong></div>
+        <div><GlossaryTerm term="productivity">Năng suất</GlossaryTerm><strong>{session.metrics.productivity.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="autonomy">Tự chủ</GlossaryTerm><strong>{session.metrics.autonomy.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="absorption">Hấp thụ</GlossaryTerm><strong>{session.metrics.absorption.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="debt">Nợ còn lại</GlossaryTerm><strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong></div>
       </div>
 
       <ol className="game2-policy-timeline">
@@ -64,26 +65,28 @@ export default function PolicyDebrief() {
         })}
       </ol>
 
-      <div className="game2-debrief-reflection">
-        <GitBranch size={18} />
-        <div>
-          <span>Câu hỏi phản tư</span>
-          <p>
-            Quyết định nào tạo ra con số tốt nhất trước mắt nhưng đồng thời làm
-            giảm quyền lựa chọn của bạn ở chặng sau?
-          </p>
+      <footer className="game2-debrief-footer">
+        <div className="game2-debrief-reflection">
+          <GitBranch size={18} />
+          <div>
+            <span>Câu hỏi phản tư</span>
+            <p>
+              Quyết định nào tạo ra con số tốt nhất trước mắt nhưng đồng thời làm
+              giảm quyền lựa chọn của bạn ở chặng sau?
+            </p>
+          </div>
+          <CircleAlert size={17} />
         </div>
-        <CircleAlert size={17} />
-      </div>
 
-      <button
-        type="button"
-        disabled={isLoading}
-        onClick={completeGame}
-        className="game-primary-action game-cursor-target"
-      >
-        Xác định kết cục năm 2030 <ArrowRight size={17} />
-      </button>
+        <button
+          type="button"
+          disabled={isLoading}
+          onClick={completeGame}
+          className="game-primary-action game-cursor-target"
+        >
+          Xác định kết cục năm 2030 <ArrowRight size={17} />
+        </button>
+      </footer>
     </section>
   );
 }

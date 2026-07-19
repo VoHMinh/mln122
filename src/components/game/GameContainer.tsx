@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen,
   CircleAlert,
@@ -15,7 +15,8 @@ import { useRoomStore } from '@/store/room-store';
 import { getPolicyStage, POLICY_STAGES } from '@/lib/game-scenarios';
 import GameBriefing from './GameBriefing';
 import GameIntro from './GameIntro';
-import GamePortal from './GamePortal';
+import GamePortal, { type PortalAccessRequest } from './GamePortal';
+import GameOnboarding from './GameOnboarding';
 import RoomLobby from './RoomLobby';
 import RoomTimer from './RoomTimer';
 import RoundPlay from './RoundPlay';
@@ -44,7 +45,11 @@ function isInTerm(phase: GamePhase) {
 export default function GameContainer() {
   const rootRef = useRef<HTMLElement>(null);
   const subscriptionRef = useRef<GatewaySubscription | null>(null);
+  const pendingAccessRef = useRef<PortalAccessRequest | null>(null);
+  const onboardingBusyRef = useRef(false);
   const [briefingOpen, setBriefingOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingEntryMode, setOnboardingEntryMode] = useState(false);
   const {
     phase,
     session,
@@ -64,6 +69,8 @@ export default function GameContainer() {
     isLoading: roomLoading,
     syncSession,
     subscribe,
+    createRoom,
+    joinRoom,
     clearError: clearRoomError,
     leaveRoom,
   } = useRoomStore();
@@ -138,9 +145,45 @@ export default function GameContainer() {
     resetGame();
   };
 
+  const beginEntryOnboarding = useCallback((request: PortalAccessRequest) => {
+    pendingAccessRef.current = request;
+    setOnboardingEntryMode(true);
+    setOnboardingOpen(true);
+  }, []);
+
+  const replayOnboarding = useCallback(() => {
+    pendingAccessRef.current = null;
+    setBriefingOpen(false);
+    setOnboardingEntryMode(false);
+    setOnboardingOpen(true);
+  }, []);
+
+  const finishOnboarding = useCallback(async () => {
+    if (onboardingBusyRef.current) return;
+    const request = pendingAccessRef.current;
+    pendingAccessRef.current = null;
+    setOnboardingOpen(false);
+    if (!request) return;
+    onboardingBusyRef.current = true;
+    try {
+      if (request.mode === 'CREATE') {
+        await createRoom(request.nickname, request.className);
+      } else {
+        await joinRoom(request.code, request.nickname, request.className);
+      }
+    } finally {
+      onboardingBusyRef.current = false;
+    }
+  }, [createRoom, joinRoom]);
+
   let phaseContent;
   if (!room) {
-    phaseContent = <GamePortal onOpenBriefing={() => setBriefingOpen(true)} />;
+    phaseContent = (
+      <GamePortal
+        onOpenBriefing={() => setBriefingOpen(true)}
+        onBeginOnboarding={beginEntryOnboarding}
+      />
+    );
   } else if (room.status === 'WAITING') {
     phaseContent = <RoomLobby />;
   } else if (phase === GamePhase.RESULT && session && session.finalResult) {
@@ -248,7 +291,16 @@ export default function GameContainer() {
         )}
       </div>
 
-      <GameBriefing isOpen={briefingOpen} onClose={() => setBriefingOpen(false)} />
+      <GameBriefing
+        isOpen={briefingOpen}
+        onClose={() => setBriefingOpen(false)}
+        onStartTour={replayOnboarding}
+      />
+      <GameOnboarding
+        isOpen={onboardingOpen}
+        entryMode={onboardingEntryMode}
+        onFinish={finishOnboarding}
+      />
     </section>
   );
 }

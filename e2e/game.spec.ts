@@ -19,6 +19,8 @@ async function enterFirstRound(page: Page) {
   await page.getByLabel('Tên hiển thị').fill('Minh');
   await page.getByLabel('Lớp / nhóm (tùy chọn)').fill('SE18A01');
   await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  await expect(page.getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
 
   await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
   await expect(page.getByText('Minh', { exact: true })).toBeVisible();
@@ -106,6 +108,84 @@ test('creates a room and reaches the first allocation stage', async ({ page }) =
   await enterFirstRound(page);
 });
 
+test('holds the room request until the onboarding is finished', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
+  await page.getByLabel('Tên hiển thị').fill('Minh');
+  await page.getByLabel('Lớp / nhóm (tùy chọn)').fill('SE18A01');
+  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+
+  await expect(page.getByText('Tăng trưởng chỉ có ý nghĩa khi đi cùng nội lực.')).toBeVisible();
+  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).not.toBeVisible();
+  await expect(page.getByText('01 / 10')).toBeVisible();
+
+  for (let step = 0; step < 9; step += 1) {
+    await page.getByRole('button', { name: 'Tiếp theo' }).click();
+  }
+  await expect(page.getByText('Cả phòng gặp cùng cú sốc, nhưng không chịu cùng thiệt hại.')).toBeVisible();
+  await page.getByRole('button', { name: 'Tôi đã hiểu, vào phòng' }).click();
+
+  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
+  await expect(page.getByText('Minh', { exact: true })).toHaveCount(1);
+});
+
+test('replays the tutorial without changing the current room phase', async ({ page }) => {
+  await enterFirstRound(page);
+  await page.getByRole('button', { name: 'Mở hướng dẫn' }).click();
+  await page.getByRole('button', { name: 'Xem tour tương tác' }).click();
+  await expect(page.getByText('Tăng trưởng chỉ có ý nghĩa khi đi cùng nội lực.')).toBeVisible();
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
+  await expect(page.getByRole('heading', { name: 'Phân bổ nguồn lực' })).toBeVisible();
+});
+
+test('opens and closes a glossary definition without cursor targeting it', async ({ page, isMobile }) => {
+  await enterFirstRound(page);
+  const term = page.getByRole('button', { name: /Năng suất/ }).first();
+  await expect(term).not.toHaveClass(/game-cursor-target/);
+
+  if (isMobile) {
+    await term.click();
+    const sheet = page.getByRole('dialog', { name: 'Giải thích: Năng suất' });
+    await expect(sheet).toBeVisible();
+    await page.getByRole('button', { name: 'Đóng giải thích' }).click();
+    await expect(sheet).not.toBeVisible();
+    return;
+  }
+
+  await term.hover();
+  await expect(page.getByRole('tooltip', { name: 'Giải thích: Năng suất' })).toBeVisible();
+  await page.mouse.move(10, 10);
+  await expect(page.getByRole('tooltip', { name: 'Giải thích: Năng suất' })).not.toBeVisible();
+});
+
+test('keeps allocation glossary placement stable and restores the native cursor in the tour', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Desktop placement and native custom-cursor behavior are covered here.');
+
+  await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
+  await page.getByLabel('Tên hiển thị').fill('Minh');
+  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  await expect(page.getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa/ })).toBeVisible();
+  await expect(page.locator('.target-cursor-wrapper')).toHaveCSS('display', 'none');
+  await expect(page.getByRole('button', { name: 'Tiếp theo' })).toHaveCSS('cursor', 'pointer');
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
+  await page.getByRole('button', { name: 'Bắt đầu phòng' }).click();
+  await page.getByRole('button', { name: 'Bắt đầu giai đoạn 1' }).click();
+
+  const education = page.getByRole('button', { name: /Giáo dục & nhân lực/ }).first();
+  await education.hover();
+  await expect(page.getByRole('tooltip', {
+    name: 'Giải thích: Giáo dục & nhân lực',
+  })).toHaveClass(/is-bottom/);
+  await page.mouse.move(10, 10);
+
+  const infrastructure = page.getByRole('button', {
+    name: /Hạ tầng số & công nghiệp/,
+  }).first();
+  await infrastructure.hover();
+  await expect(page.getByRole('tooltip', {
+    name: 'Giải thích: Hạ tầng số & công nghiệp',
+  })).toHaveClass(/is-top/);
+});
+
 test('stops at the round report until the player continues', async ({ page }) => {
   await enterFirstRound(page);
   await page.getByRole('button', { name: 'Chia đều' }).click();
@@ -147,8 +227,10 @@ test('target cursor releases disabled and unmounted targets', async ({ page, isM
   await target.hover();
   await expect(page.locator('.target-cursor-frame')).toHaveAttribute('data-active', 'true');
   await target.click();
-  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeVisible();
   await expect(page.locator('.target-cursor-frame')).not.toHaveAttribute('data-active', 'true');
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
+  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
 });
 
 test.describe('deterministic 2030 outcomes', () => {
