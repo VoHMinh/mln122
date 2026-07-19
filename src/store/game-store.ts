@@ -99,7 +99,12 @@ export const useGameStore = create<GameState & GameActions>()(
       loadSession: (session, roomInProgress = false) => {
         const current = get();
         const belongsToCurrentSession = current.session?.sessionId === session.sessionId;
-        if (belongsToCurrentSession && current.pendingResolution) {
+        const shouldPreservePendingReport =
+          belongsToCurrentSession &&
+          current.pendingResolution &&
+          !session.completed &&
+          session.histories.length <= (current.session?.histories.length ?? 0);
+        if (shouldPreservePendingReport) {
           set({ session, finalResult: session.finalResult });
           return;
         }
@@ -218,6 +223,30 @@ export const useGameStore = create<GameState & GameActions>()(
             isLoading: false,
           });
         } catch (error) {
+          // The server can accept a decision even when the response is interrupted.
+          // Reconcile first so a retry cannot leave the player on a recorded round.
+          try {
+            const recovered = await getGameGateway().getSession(session.sessionId, playerToken);
+            const recordedResolution = recovered.histories.find(
+              (history) => history.roundNumber === session.currentRound,
+            );
+            if (recordedResolution) {
+              useRoomStore.setState({ sessionSnapshot: recovered });
+              set({
+                session: recovered,
+                pendingResolution: recovered.completed ? null : recordedResolution,
+                pendingSubmissionId: null,
+                finalResult: recovered.finalResult,
+                phase: recovered.completed ? GamePhase.RESULT : GamePhase.ROUND_REPORT,
+                seenShock: recovered.histories.some((history) => Boolean(history.shock)),
+                isLoading: false,
+                error: null,
+              });
+              return;
+            }
+          } catch {
+            // Preserve the original error when the recovery request also fails.
+          }
           set({
             error: errorMessage(error, 'Không thể ghi nhận quyết định. Vui lòng thử lại.'),
             isLoading: false,

@@ -48,6 +48,7 @@ export default function GameContainer() {
   const onboardingBusyRef = useRef(false);
   const resumedOnboardingRef = useRef(false);
   const endedRoomRef = useRef<string | null>(null);
+  const reconciledSessionRef = useRef<string | null>(null);
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingEntryMode, setOnboardingEntryMode] = useState(false);
@@ -108,6 +109,23 @@ export default function GameContainer() {
   }, [roomId, subscribe]);
 
   useEffect(() => {
+    const syncKey =
+      room?.status === 'IN_PROGRESS' && roomId && sessionId
+        ? `${roomId}:${sessionId}`
+        : null;
+    if (!syncKey) {
+      reconciledSessionRef.current = null;
+      return;
+    }
+    if (reconciledSessionRef.current === syncKey) return;
+    reconciledSessionRef.current = syncKey;
+
+    void syncSession().then((snapshot) => {
+      if (snapshot) loadSession(snapshot, true);
+    });
+  }, [loadSession, room?.status, roomId, sessionId, syncSession]);
+
+  useEffect(() => {
     if (room && !sessionId) {
       resetGame();
       leaveRoom();
@@ -117,14 +135,6 @@ export default function GameContainer() {
     if (!session && sessionSnapshot) {
       loadSession(sessionSnapshot, room.status === 'IN_PROGRESS');
       return;
-    }
-    if (
-      room.status === 'IN_PROGRESS' &&
-      [GamePhase.PORTAL, GamePhase.LOBBY].includes(phase)
-    ) {
-      void syncSession().then((snapshot) => {
-        if (snapshot) loadSession(snapshot, true);
-      });
     }
     if (room.status !== 'ENDED') {
       endedRoomRef.current = null;
@@ -142,7 +152,6 @@ export default function GameContainer() {
   }, [
     handleRoomEnded,
     loadSession,
-    phase,
     room,
     leaveRoom,
     resetGame,

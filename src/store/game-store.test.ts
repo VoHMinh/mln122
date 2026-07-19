@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetGameGatewayForTests } from '@/lib/game-gateway';
+import { getGameGateway, resetGameGatewayForTests } from '@/lib/game-gateway';
 import { useGameStore } from '@/store/game-store';
 import { useRoomStore } from '@/store/room-store';
 import { GamePhase } from '@/types';
@@ -71,5 +71,41 @@ describe('game store report lifecycle', () => {
     expect(
       Object.values(useGameStore.getState().allocations).reduce((sum, value) => sum + value, 0),
     ).toBe(snapshot!.budgetForRound);
+  });
+
+  it('reconciles a stale final-round view to the debrief after the server recorded it', async () => {
+    await createReadyRoom('Binh');
+    await useRoomStore.getState().startRoom();
+    const snapshot = useRoomStore.getState().sessionSnapshot!;
+    const playerToken = useRoomStore.getState().playerToken!;
+    const gateway = getGameGateway();
+
+    useGameStore.getState().loadSession(snapshot, true);
+    useGameStore.getState().startTerm();
+    useGameStore.getState().balanceAllocation();
+    await useGameStore.getState().submitRound('B');
+
+    let remote = await gateway.getSession(snapshot.sessionId, playerToken);
+    while (remote.histories.length < 4) {
+      await gateway.submitRound(snapshot.sessionId, playerToken, {
+        submissionId: crypto.randomUUID(),
+        roundNumber: remote.currentRound,
+        stateVersion: remote.stateVersion,
+        allocation: {
+          innovation: remote.budgetForRound,
+          education: 0,
+          infrastructure: 0,
+          fdi: 0,
+        },
+        borrowedAmount: 0,
+        eventChoice: 'B',
+      });
+      remote = await gateway.getSession(snapshot.sessionId, playerToken);
+    }
+
+    useGameStore.getState().loadSession(remote, true);
+
+    expect(useGameStore.getState().session?.histories).toHaveLength(4);
+    expect(useGameStore.getState().phase).toBe(GamePhase.DEBRIEF);
   });
 });
