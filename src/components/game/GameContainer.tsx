@@ -47,6 +47,7 @@ export default function GameContainer() {
   const subscriptionRef = useRef<GatewaySubscription | null>(null);
   const onboardingBusyRef = useRef(false);
   const resumedOnboardingRef = useRef(false);
+  const endedRoomRef = useRef<string | null>(null);
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingEntryMode, setOnboardingEntryMode] = useState(false);
@@ -125,7 +126,19 @@ export default function GameContainer() {
         if (snapshot) loadSession(snapshot, true);
       });
     }
-    if (room.status === 'ENDED') handleRoomEnded();
+    if (room.status !== 'ENDED') {
+      endedRoomRef.current = null;
+      return;
+    }
+    if (endedRoomRef.current === room.roomId) return;
+    endedRoomRef.current = room.roomId;
+    void syncSession().then((snapshot) => {
+      if (snapshot?.completed && snapshot.finalResult) {
+        loadSession(snapshot);
+        return;
+      }
+      handleRoomEnded();
+    });
   }, [
     handleRoomEnded,
     loadSession,
