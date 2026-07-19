@@ -257,13 +257,16 @@ export const useGameStore = create<GameState & GameActions>()(
       continueFromReport: () => {
         const { session, pendingResolution, seenShock } = get();
         if (!session || !pendingResolution) return;
-        if (pendingResolution.nextRound === null) {
+        const finalRoundRecorded =
+          pendingResolution.roundNumber >= 4 ||
+          pendingResolution.nextRound === null ||
+          session.histories.length >= 4;
+        if (finalRoundRecorded) {
           set({
             pendingResolution: null,
-            phase: GamePhase.DEBRIEF,
+            phase: GamePhase.COUNTDOWN,
             allocations: emptyAllocation(),
             borrowedAmount: 0,
-            error: null,
           });
           return;
         }

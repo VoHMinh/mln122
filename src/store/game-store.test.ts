@@ -110,10 +110,15 @@ describe('game store report lifecycle', () => {
 
     useGameStore.setState({
       phase: GamePhase.ROUND_REPORT,
-      pendingResolution: remote.histories.at(-1)!,
+      pendingResolution: {
+        ...remote.histories.at(-1)!,
+        // Exercise the live-response edge case: the fourth record exists,
+        // but nextRound is stale instead of null.
+        nextRound: 4,
+      },
     });
     useGameStore.getState().continueFromReport();
 
-    expect(useGameStore.getState().phase).toBe(GamePhase.DEBRIEF);
+    expect(useGameStore.getState().phase).toBe(GamePhase.COUNTDOWN);
   });
 });

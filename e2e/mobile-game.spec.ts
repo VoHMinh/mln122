@@ -70,7 +70,7 @@ async function finishRound(page: Page, round: number) {
   await page.getByText(`Báo cáo giai đoạn 0${round}`).waitFor();
   await expectPhaseCanScroll(page);
   const continueAction = page.getByRole('button', {
-    name: round === 4 ? 'Xem tổng kết nhiệm kỳ' : `Sang giai đoạn ${round + 1}`,
+    name: round === 4 ? 'Tiến đến năm 2030' : `Sang giai đoạn ${round + 1}`,
   });
   await expectReachable(page, continueAction);
   await continueAction.click();
@@ -117,6 +117,10 @@ test('keeps every mobile phase scrollable and every primary action reachable', a
   for (let round = 1; round <= 4; round += 1) {
     await finishRound(page, round);
   }
+
+  const openDebrief = page.getByRole('button', { name: 'Mở hồ sơ nhiệm kỳ' });
+  await expectReachable(page, openDebrief);
+  await openDebrief.click();
 
   const conclude = page.getByRole('button', { name: 'Xác định kết cục năm 2030' });
   await expectReachable(page, conclude);
