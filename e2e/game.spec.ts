@@ -114,8 +114,13 @@ test('creates a room and reaches the first allocation stage', async ({ page }) =
 });
 
 test('aligns the join fields and keeps the group placeholder compact', async ({ page }) => {
-  await page.getByRole('button', { name: 'Vào phòng', exact: true }).click();
-  await page.getByLabel('Mã phòng', { exact: true }).fill('A4K9Q2');
+  const joinTab = page.getByRole('button', { name: 'Vào phòng', exact: true });
+  const roomCode = page.getByLabel('Mã phòng', { exact: true });
+  await expect(async () => {
+    await joinTab.click();
+    await expect(roomCode).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 5_000 });
+  await roomCode.fill('A4K9Q2');
   await page.getByLabel('Tên hiển thị').fill('Minh');
   await expect(page.getByText('Mã phòng không tồn tại.')).toBeVisible();
 
@@ -123,7 +128,12 @@ test('aligns the join fields and keeps the group placeholder compact', async ({ 
   const groupBox = await page.getByLabel('Nhóm', { exact: true }).boundingBox();
   expect(nicknameBox).not.toBeNull();
   expect(groupBox).not.toBeNull();
-  expect(Math.abs(nicknameBox!.y - groupBox!.y)).toBeLessThanOrEqual(1);
+  if ((page.viewportSize()?.width ?? 0) < 640) {
+    expect(groupBox!.y).toBeGreaterThan(nicknameBox!.y + nicknameBox!.height);
+    expect(Math.abs(nicknameBox!.x - groupBox!.x)).toBeLessThanOrEqual(1);
+  } else {
+    expect(Math.abs(nicknameBox!.y - groupBox!.y)).toBeLessThanOrEqual(1);
+  }
   await expect(page.getByLabel('Nhóm', { exact: true })).toContainText('Mã chưa hợp lệ');
 });
 
