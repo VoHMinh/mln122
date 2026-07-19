@@ -64,7 +64,7 @@ export function createInitialSession(
   sessionId: string,
   roomId: string,
   nickname: string,
-  className: string,
+  groupName: string,
   roomSeed: string,
 ): SessionSnapshot {
   const shock = deriveShock(roomSeed);
@@ -72,7 +72,9 @@ export function createInitialSession(
     sessionId,
     roomId,
     nickname,
-    className,
+    groupName,
+    readiness: 'ONBOARDING',
+    joinedAt: new Date().toISOString(),
     currentRound: 1,
     stateVersion: 1,
     budgetForRound: 100,
@@ -398,7 +400,7 @@ export function completeSessionState(session: SessionSnapshot): {
   const result: CompleteResponse = {
     sessionId: session.sessionId,
     nickname: session.nickname,
-    className: session.className,
+    groupName: session.groupName,
     finalScore,
     outcomeType,
     outcomeMessage: OUTCOME_MESSAGES[outcomeType],
@@ -422,4 +424,3 @@ export const REFERENCE_TRAJECTORIES = {
   disrupted: [25, 35, 40, 38],
   labels: ['2025-2026', '2026-2027', '2027-2028', '2028-2030'],
 };
-

@@ -64,23 +64,24 @@ for (const viewport of viewports) {
   await page.goto('http://localhost:3000/game');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).waitFor();
+  await page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' }).waitFor();
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${output}/${viewport.name}-portal.png` });
 
   await page.getByRole('button', { name: 'Vào phòng', exact: true }).click();
-  const joinAction = page.getByRole('button', { name: 'Vào phòng', exact: true }).last();
-  await page.getByLabel('Mã phòng').fill('ABC123');
+  const joinAction = page.getByRole('button', { name: 'Vào phòng và xem hướng dẫn' });
+  await page.getByLabel('Mã phòng', { exact: true }).fill('ABC123');
   await joinAction.scrollIntoViewIfNeeded();
   await assertFullyVisible(joinAction, viewport, 'join room action');
   await page.screenshot({ path: `${output}/${viewport.name}-join.png` });
   await page.getByRole('button', { name: 'Tạo phòng', exact: true }).click();
 
-  const portalAction = page.getByRole('button', { name: 'Tạo phòng và tham gia' });
+  const portalAction = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
   await portalAction.scrollIntoViewIfNeeded();
   await assertFullyVisible(portalAction, viewport, 'create room action');
   await page.screenshot({ path: `${output}/${viewport.name}-portal-action.png` });
 
+  await page.getByLabel('Tên phòng').fill('Phòng Visual QA');
   await page.getByLabel('Tên hiển thị').fill('Visual QA');
   await portalAction.click();
   await page
@@ -99,7 +100,7 @@ for (const viewport of viewports) {
   await page.waitForTimeout(250);
   await page.screenshot({ path: `${output}/${viewport.name}-onboarding.png` });
   await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
-  await page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.').waitFor();
+  await page.locator('.game2-lobby').waitFor();
   await page.getByRole('button', { name: 'Bắt đầu phòng' }).click();
   await page.getByRole('button', { name: 'Bắt đầu giai đoạn 1' }).click();
   await page.getByRole('heading', { name: 'Phân bổ nguồn lực' }).waitFor();

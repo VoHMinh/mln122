@@ -27,7 +27,7 @@ export default function RoomResult() {
       </header>
       <div className="game2-room-result-heading">
         <Trophy size={19} />
-        <div><span>Kết quả phòng</span><strong>Quỹ đạo của cả lớp</strong></div>
+        <div><span>Kết quả phòng</span><strong>Đại diện cao điểm nhất mỗi nhóm</strong></div>
       </div>
       <Leaderboard />
       <div className="game2-result-actions">

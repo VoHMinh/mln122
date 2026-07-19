@@ -38,7 +38,7 @@ export default function GameIntro() {
       <div className="game2-intro-mark" aria-hidden="true"><Flag size={42} /></div>
       <div className="game2-intro-copy">
         <p className="game-overline"><Landmark size={14} /> Mở nhiệm kỳ chính sách</p>
-        <span>{session?.nickname} · Phòng {room?.roomCode}</span>
+        <span>{session?.nickname} · {session?.groupName} · {room?.roomName}</span>
         <h1>Năm 2025. Đồng hồ đã bắt đầu chạy.</h1>
         <p>
           Bạn có bốn giai đoạn để đưa năng suất tiến lên mà không đánh đổi quyền

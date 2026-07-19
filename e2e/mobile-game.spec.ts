@@ -83,16 +83,17 @@ test('keeps every mobile phase scrollable and every primary action reachable', a
   await page.goto('/game');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  const create = page.getByRole('button', { name: 'Tạo phòng và tham gia' });
+  const create = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
   await expect(create).toBeEnabled();
 
   const accessTabs = page.locator('.game2-segmented button');
   await accessTabs.nth(1).tap();
-  await expect(page.getByLabel('Mã phòng')).toBeVisible();
-  await page.getByLabel('Mã phòng').fill('ABC123');
+  await expect(page.getByLabel('Mã phòng', { exact: true })).toBeVisible();
+  await page.getByLabel('Mã phòng', { exact: true }).fill('ABC123');
   await accessTabs.nth(0).tap();
-  await expect(page.getByLabel('Mã phòng')).toBeHidden();
+  await expect(page.getByLabel('Mã phòng', { exact: true })).toBeHidden();
 
+  await page.getByLabel('Tên phòng').fill('Phòng kiểm thử mobile');
   await page.getByLabel('Tên hiển thị').focus();
   await page.setViewportSize({ width: 360, height: 430 });
   await page.getByLabel('Tên hiển thị').fill('Mobile QA');
@@ -132,4 +133,14 @@ test('keeps every mobile phase scrollable and every primary action reachable', a
   await expect(page.getByRole('heading', { name: 'Bảng xếp hạng phòng.' })).toBeVisible();
   const personalResult = page.getByRole('button', { name: 'Xem lại kết quả cá nhân' });
   await expectReachable(page, personalResult);
+  await personalResult.click();
+
+  const leaveResult = page.getByRole('button', { name: 'Về sảnh' });
+  await expectReachable(page, leaveResult);
+  await leaveResult.click();
+  await page.goto('/leaderboard');
+  await expect(page.getByRole('heading', { name: 'Lịch sử các phòng đã tham gia.' })).toBeVisible();
+  await expect(page.getByText('Phòng kiểm thử mobile').first()).toBeVisible();
+  await expect(page.getByText('Điểm cá nhân')).toBeVisible();
+  await expectReachable(page, page.getByRole('link', { name: 'Trở lại trò chơi' }));
 });

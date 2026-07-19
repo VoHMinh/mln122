@@ -1,10 +1,14 @@
 import type {
   CompleteResponse,
+  CreateRoomRequest,
   CreateRoomResponse,
   GatewaySubscription,
+  JoinRoomRequest,
   JoinRoomResponse,
   LeaderboardResponse,
+  PlayerHistoryEntry,
   ReferenceTrajectories,
+  RoomPreview,
   RoomSnapshot,
   RoundRequest,
   RoundResolution,
@@ -14,9 +18,11 @@ import { HttpGameGateway } from '@/lib/gateways/http-game-gateway';
 import { MockGameGateway } from '@/lib/gateways/mock-game-gateway';
 
 export interface GameGateway {
-  createRoom(hostName: string, durationSeconds?: number): Promise<CreateRoomResponse>;
-  joinRoom(roomCode: string, nickname: string, className: string): Promise<JoinRoomResponse>;
-  startRoom(roomId: string, hostToken: string): Promise<RoomSnapshot>;
+  createRoom(request: CreateRoomRequest): Promise<CreateRoomResponse>;
+  getRoomPreview(roomCode: string): Promise<RoomPreview>;
+  joinRoom(request: JoinRoomRequest): Promise<JoinRoomResponse>;
+  markReady(sessionId: string, playerToken: string): Promise<RoomSnapshot>;
+  startRoom(roomId: string, hostToken: string, force?: boolean): Promise<RoomSnapshot>;
   endRoom(roomId: string, hostToken: string): Promise<RoomSnapshot>;
   getRoom(roomId: string, token?: string): Promise<RoomSnapshot>;
   subscribeRoom(
@@ -36,6 +42,7 @@ export interface GameGateway {
     playerToken: string,
   ): Promise<CompleteResponse>;
   getLeaderboard(roomId: string, token?: string): Promise<LeaderboardResponse>;
+  getPlayerHistory(profileToken: string): Promise<PlayerHistoryEntry[]>;
   getReferenceTrajectories(): Promise<ReferenceTrajectories>;
 }
 
@@ -53,4 +60,3 @@ export function getGameGateway(): GameGateway {
 export function resetGameGatewayForTests() {
   gateway = null;
 }
-

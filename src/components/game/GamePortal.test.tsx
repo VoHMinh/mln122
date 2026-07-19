@@ -10,7 +10,9 @@ describe('GamePortal onboarding boundary', () => {
   });
 
   it('validates input and emits a pending create request without creating a room', async () => {
-    const onBeginOnboarding = vi.fn<(request: PortalAccessRequest) => void>();
+    const onBeginOnboarding = vi.fn(async (_request: PortalAccessRequest) => {
+      void _request;
+    });
     render(
       <GamePortal
         onOpenBriefing={vi.fn()}
@@ -19,33 +21,36 @@ describe('GamePortal onboarding boundary', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' })).toBeEnabled();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng và tham gia' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' }));
     expect(screen.getByText('Hãy nhập tên hiển thị trước khi tiếp tục.')).toBeVisible();
     expect(onBeginOnboarding).not.toHaveBeenCalled();
     expect(useRoomStore.getState().room).toBeNull();
 
+    fireEvent.change(screen.getByLabelText('Tên phòng'), {
+      target: { value: ' Ca sáng ' },
+    });
     fireEvent.change(screen.getByLabelText('Tên hiển thị'), {
       target: { value: '  Minh  ' },
     });
-    fireEvent.change(screen.getByLabelText('Lớp / nhóm (tùy chọn)'), {
-      target: { value: ' SE18A01 ' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng và tham gia' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' }));
 
-    expect(onBeginOnboarding).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onBeginOnboarding).toHaveBeenCalledOnce());
     expect(onBeginOnboarding).toHaveBeenCalledWith({
       mode: 'CREATE',
+      roomName: 'Ca sáng',
+      groupNames: ['Nhóm 1', 'Nhóm 2', 'Nhóm 3', 'Nhóm 4', 'Nhóm 5', 'Nhóm 6'],
       nickname: 'Minh',
-      className: 'SE18A01',
-      code: '',
+      groupName: 'Nhóm 1',
     });
     expect(useRoomStore.getState().room).toBeNull();
   });
 
   it('requires a six-character room code before starting the tour', async () => {
-    const onBeginOnboarding = vi.fn<(request: PortalAccessRequest) => void>();
+    const onBeginOnboarding = vi.fn(async (_request: PortalAccessRequest) => {
+      void _request;
+    });
     render(
       <GamePortal
         onOpenBriefing={vi.fn()}
@@ -53,7 +58,7 @@ describe('GamePortal onboarding boundary', () => {
       />,
     );
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' })).toBeEnabled();
     });
 
     const joinButtons = screen.getAllByRole('button', { name: 'Vào phòng' });
@@ -64,10 +69,8 @@ describe('GamePortal onboarding boundary', () => {
     fireEvent.change(screen.getByLabelText('Tên hiển thị'), {
       target: { value: 'Lan' },
     });
-    const activeJoinButtons = screen.getAllByRole('button', { name: 'Vào phòng' });
-    fireEvent.click(activeJoinButtons[activeJoinButtons.length - 1]);
-
-    expect(screen.getByText('Mã phòng phải gồm đúng 6 ký tự.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Vào phòng và xem hướng dẫn' })).toBeDisabled();
+    expect(screen.getByText('Danh sách nhóm sẽ hiện ngay khi mã phòng hợp lệ.')).toBeVisible();
     expect(onBeginOnboarding).not.toHaveBeenCalled();
   });
 });

@@ -45,8 +45,8 @@ function isInTerm(phase: GamePhase) {
 export default function GameContainer() {
   const rootRef = useRef<HTMLElement>(null);
   const subscriptionRef = useRef<GatewaySubscription | null>(null);
-  const pendingAccessRef = useRef<PortalAccessRequest | null>(null);
   const onboardingBusyRef = useRef(false);
+  const resumedOnboardingRef = useRef(false);
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingEntryMode, setOnboardingEntryMode] = useState(false);
@@ -71,6 +71,7 @@ export default function GameContainer() {
     subscribe,
     createRoom,
     joinRoom,
+    markReady,
     clearError: clearRoomError,
     leaveRoom,
   } = useRoomStore();
@@ -138,6 +139,17 @@ export default function GameContainer() {
     syncSession,
   ]);
 
+  useEffect(() => {
+    if (
+      resumedOnboardingRef.current ||
+      !room ||
+      sessionSnapshot?.readiness !== 'ONBOARDING'
+    ) return;
+    resumedOnboardingRef.current = true;
+    setOnboardingEntryMode(true);
+    setOnboardingOpen(true);
+  }, [room, sessionSnapshot?.readiness]);
+
   useGSAP(() => {
     if (reducedMotion) return;
     gsap.fromTo(
@@ -172,14 +184,29 @@ export default function GameContainer() {
     resetGame();
   };
 
-  const beginEntryOnboarding = useCallback((request: PortalAccessRequest) => {
-    pendingAccessRef.current = request;
+  const beginEntryOnboarding = useCallback(async (request: PortalAccessRequest) => {
+    if (onboardingBusyRef.current) return;
+    onboardingBusyRef.current = true;
+    const connected =
+      request.mode === 'CREATE'
+        ? await createRoom({
+            roomName: request.roomName,
+            groupNames: request.groupNames,
+            nickname: request.nickname,
+            groupName: request.groupName,
+          })
+        : await joinRoom({
+            roomCode: request.code,
+            nickname: request.nickname,
+            groupName: request.groupName,
+          });
+    onboardingBusyRef.current = false;
+    if (!connected) return;
     setOnboardingEntryMode(true);
     setOnboardingOpen(true);
-  }, []);
+  }, [createRoom, joinRoom]);
 
   const replayOnboarding = useCallback(() => {
-    pendingAccessRef.current = null;
     setBriefingOpen(false);
     setOnboardingEntryMode(false);
     setOnboardingOpen(true);
@@ -187,21 +214,15 @@ export default function GameContainer() {
 
   const finishOnboarding = useCallback(async () => {
     if (onboardingBusyRef.current) return;
-    const request = pendingAccessRef.current;
-    pendingAccessRef.current = null;
-    setOnboardingOpen(false);
-    if (!request) return;
-    onboardingBusyRef.current = true;
-    try {
-      if (request.mode === 'CREATE') {
-        await createRoom(request.nickname, request.className);
-      } else {
-        await joinRoom(request.code, request.nickname, request.className);
-      }
-    } finally {
-      onboardingBusyRef.current = false;
+    if (!onboardingEntryMode) {
+      setOnboardingOpen(false);
+      return;
     }
-  }, [createRoom, joinRoom]);
+    onboardingBusyRef.current = true;
+    await markReady();
+    onboardingBusyRef.current = false;
+    setOnboardingOpen(false);
+  }, [markReady, onboardingEntryMode]);
 
   let phaseContent;
   if (!room) {
@@ -246,7 +267,7 @@ export default function GameContainer() {
           <div className="game2-command-title">
             <p className="game-overline">Đường đến 2030</p>
             <strong>
-              {isInTerm(phase) ? `${stage.period} · ${stage.title}` : `Phòng ${room?.roomCode}`}
+              {isInTerm(phase) ? `${stage.period} · ${stage.title}` : room?.roomName}
             </strong>
           </div>
 

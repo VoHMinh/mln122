@@ -4,6 +4,16 @@ import { useGameStore } from '@/store/game-store';
 import { useRoomStore } from '@/store/room-store';
 import { GamePhase } from '@/types';
 
+async function createReadyRoom(nickname: string) {
+  await useRoomStore.getState().createRoom({
+    roomName: 'Ca hoc thu',
+    groupNames: ['Nhom 1', 'Nhom 2'],
+    nickname,
+    groupName: 'Nhom 1',
+  });
+  await useRoomStore.getState().markReady();
+}
+
 describe('game store report lifecycle', () => {
   beforeEach(() => {
     resetGameGatewayForTests();
@@ -13,7 +23,7 @@ describe('game store report lifecycle', () => {
   });
 
   it('does not advance before the player accepts the round report', async () => {
-    await useRoomStore.getState().createRoom('Minh', 'SE18');
+    await createReadyRoom('Minh');
     await useRoomStore.getState().startRoom();
     const snapshot = useRoomStore.getState().sessionSnapshot;
     expect(snapshot).not.toBeNull();
@@ -30,7 +40,7 @@ describe('game store report lifecycle', () => {
   });
 
   it('restores the exact pending report after a reload', async () => {
-    await useRoomStore.getState().createRoom('Lan', 'SE18');
+    await createReadyRoom('Lan');
     await useRoomStore.getState().startRoom();
     const snapshot = useRoomStore.getState().sessionSnapshot;
     useGameStore.getState().loadSession(snapshot!, true);
@@ -50,7 +60,7 @@ describe('game store report lifecycle', () => {
   });
 
   it('starts each round at zero and only splits resources on command', async () => {
-    await useRoomStore.getState().createRoom('An', 'SE18');
+    await createReadyRoom('An');
     await useRoomStore.getState().startRoom();
     const snapshot = useRoomStore.getState().sessionSnapshot;
 
