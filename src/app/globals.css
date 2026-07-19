@@ -1411,7 +1411,14 @@ body {
 .game-route {
   position: relative;
   isolation: isolate;
+  height: var(--game-viewport-height, 100dvh);
+  overflow: hidden;
   background: #061016;
+}
+
+.game-route-frame {
+  height: 100%;
+  min-height: 0;
 }
 
 .game-page-grid,
@@ -3907,4 +3914,236 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .game2-tour-progress i,
   .game2-glossary-term { transition: none !important; }
+}
+
+/* Mobile game contract: real visual viewport, touch scrolling, reachable actions. */
+@media (max-width: 820px) {
+  .game-route {
+    height: var(--game-viewport-height, 100dvh);
+    min-height: 22rem;
+    overflow: hidden;
+    padding-bottom: max(.45rem, env(safe-area-inset-bottom));
+  }
+
+  .game-route-frame,
+  .game-container,
+  .game2-shell,
+  .game2-phase {
+    min-height: 0;
+  }
+
+  .game2-shell {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .game2-phase > section {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-color: rgb(73 209 200 / .42) transparent;
+    scrollbar-width: thin;
+    scroll-padding-block: .75rem 4.5rem;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .game2-phase > section::-webkit-scrollbar { width: 4px; }
+  .game2-phase > section::-webkit-scrollbar-thumb { background: rgb(73 209 200 / .42); }
+
+  .game-briefing-panel {
+    max-height: calc(var(--game-viewport-height, 100dvh) - 1rem) !important;
+  }
+
+  .game2-onboarding {
+    height: var(--game-viewport-height, 100dvh);
+    min-height: 20rem;
+  }
+
+  .game2-tour-coach {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    max-height: calc(var(--game-viewport-height, 100dvh) - 1rem);
+  }
+
+  .game2-tour-copy {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  .game2-glossary-popover.is-compact {
+    max-height: calc(var(--game-viewport-height, 100dvh) - 1.2rem);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .game2-commandbar > .game2-icon-command:last-child {
+    display: grid;
+  }
+
+  .game2-stage-rail li { padding: .2rem; }
+
+  .game2-lobby,
+  .game2-play,
+  .game2-event,
+  .game2-report,
+  .game2-debrief,
+  .game2-result,
+  .game2-room-result {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .game2-portal,
+  .game2-lobby,
+  .game2-play,
+  .game2-event,
+  .game2-report,
+  .game2-debrief,
+  .game2-result,
+  .game2-room-result {
+    display: block;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .game2-intro,
+  .game2-shock {
+    align-content: start;
+    align-items: start;
+    min-height: 100%;
+  }
+
+  .game2-portal.is-access-focused {
+    gap: 0;
+    padding-top: .65rem;
+  }
+
+  .game2-portal.is-access-focused .game2-portal-copy {
+    display: none;
+  }
+
+  .game2-play-layout,
+  .game2-allocation {
+    display: block;
+    min-height: 0;
+  }
+
+  .game2-allocation-grid {
+    grid-auto-rows: minmax(5.4rem, auto);
+  }
+
+  .game2-event {
+    align-content: initial;
+  }
+
+  .game2-policy-grid {
+    grid-template-rows: none;
+  }
+
+  .game2-report > footer {
+    margin-top: .75rem;
+  }
+
+  .game2-debrief .game2-policy-timeline {
+    grid-template-rows: auto auto;
+  }
+
+  .game2-run-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .game2-run-metrics div {
+    min-height: 3.15rem;
+  }
+
+  .game2-allocation-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+
+  .game2-allocation-control {
+    min-height: 5.5rem;
+  }
+
+  .game2-allocation-control p {
+    display: block;
+    margin-top: .18rem;
+    font-size: .56rem;
+    line-height: 1.35;
+  }
+
+  .game2-report-metrics,
+  .game2-debrief-metrics,
+  .game2-result-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game2-policy-timeline,
+  .game2-debrief .game2-policy-timeline {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+
+  .game2-policy-timeline li > div:last-child > p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: .3rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .game2-lobby-footer,
+  .game2-event-footer,
+  .game2-report > footer,
+  .game2-debrief-footer,
+  .game2-result-actions {
+    position: static;
+    margin-right: 0;
+    margin-left: 0;
+    padding-bottom: calc(.65rem + env(safe-area-inset-bottom));
+    border-top: 1px solid rgb(73 209 200 / .22);
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .game2-intro-copy > .game-primary-action,
+  .game2-shock-copy > .game-primary-action,
+  .game2-allocation-next,
+  .game2-countdown > .game-primary-action {
+    position: static;
+    width: 100%;
+    justify-content: center;
+    box-shadow: none;
+  }
+
+  .game2-table-wrap {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .game2-tour-coach {
+    right: .45rem;
+    bottom: max(.45rem, env(safe-area-inset-bottom));
+    left: .45rem;
+    max-height: calc(var(--game-viewport-height, 100dvh) - .9rem);
+  }
+
+  .game2-tour-board-content {
+    padding-bottom: min(19.5rem, 47vh);
+  }
+}
+
+@media (max-width: 360px) {
+  .game2-result-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .game2-result-actions > button {
+    width: 100%;
+  }
 }

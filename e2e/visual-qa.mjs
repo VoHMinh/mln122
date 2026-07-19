@@ -6,6 +6,7 @@ const viewports = [
   { name: '1366x768', width: 1366, height: 768, mobile: false },
   { name: '1024x768', width: 1024, height: 768, mobile: false },
   { name: '390x844', width: 390, height: 844, mobile: true },
+  { name: '360x640', width: 360, height: 640, mobile: true },
 ];
 
 const output = 'test-results/visual-qa';
@@ -67,8 +68,21 @@ for (const viewport of viewports) {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${output}/${viewport.name}-portal.png` });
 
+  await page.getByRole('button', { name: 'Vào phòng', exact: true }).click();
+  const joinAction = page.getByRole('button', { name: 'Vào phòng', exact: true }).last();
+  await page.getByLabel('Mã phòng').fill('ABC123');
+  await joinAction.scrollIntoViewIfNeeded();
+  await assertFullyVisible(joinAction, viewport, 'join room action');
+  await page.screenshot({ path: `${output}/${viewport.name}-join.png` });
+  await page.getByRole('button', { name: 'Tạo phòng', exact: true }).click();
+
+  const portalAction = page.getByRole('button', { name: 'Tạo phòng và tham gia' });
+  await portalAction.scrollIntoViewIfNeeded();
+  await assertFullyVisible(portalAction, viewport, 'create room action');
+  await page.screenshot({ path: `${output}/${viewport.name}-portal-action.png` });
+
   await page.getByLabel('Tên hiển thị').fill('Visual QA');
-  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  await portalAction.click();
   await page
     .getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa khi đi cùng nội lực/ })
     .waitFor();
@@ -111,6 +125,7 @@ for (const viewport of viewports) {
   await page.getByRole('button', { name: 'Mở hồ sơ nhiệm kỳ' }).click();
   const conclude = page.getByRole('button', { name: 'Xác định kết cục năm 2030' });
   await conclude.waitFor();
+  await conclude.scrollIntoViewIfNeeded();
   await assertFullyVisible(conclude, viewport, 'conclusion action');
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${output}/${viewport.name}-debrief.png` });
@@ -118,9 +133,18 @@ for (const viewport of viewports) {
   await conclude.click();
   const resultAction = page.getByRole('button', { name: 'Xem bảng xếp hạng phòng' });
   await resultAction.waitFor();
+  await resultAction.scrollIntoViewIfNeeded();
   await assertFullyVisible(resultAction, viewport, 'room leaderboard action');
   await page.waitForTimeout(1_000);
   await page.screenshot({ path: `${output}/${viewport.name}-result.png` });
+
+  await resultAction.click();
+  const personalResultAction = page.getByRole('button', { name: 'Xem lại kết quả cá nhân' });
+  await personalResultAction.waitFor();
+  await personalResultAction.scrollIntoViewIfNeeded();
+  await assertFullyVisible(personalResultAction, viewport, 'personal result action');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${output}/${viewport.name}-room-result.png` });
 
   const overflow = await page.evaluate(() => ({
     horizontal: document.documentElement.scrollWidth - window.innerWidth,
