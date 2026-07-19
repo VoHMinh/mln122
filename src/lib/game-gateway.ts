@@ -50,10 +50,9 @@ let gateway: GameGateway | null = null;
 
 export function getGameGateway(): GameGateway {
   if (gateway) return gateway;
-  gateway =
-    process.env.NEXT_PUBLIC_GAME_API_MODE === 'http'
-      ? new HttpGameGateway()
-      : new MockGameGateway();
+  const mode = process.env.NEXT_PUBLIC_GAME_API_MODE ??
+    (process.env.NODE_ENV === 'test' ? 'mock' : 'http');
+  gateway = mode === 'mock' ? new MockGameGateway() : new HttpGameGateway();
   return gateway;
 }
 

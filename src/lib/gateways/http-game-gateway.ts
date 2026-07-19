@@ -16,7 +16,10 @@ import type {
   SessionSnapshot,
 } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1';
+const API_BASE = (
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'
+).replace(/\/+$/, '');
+const SSE_RECONNECT_DELAY_MS = 1500;
 
 async function apiFetch<T>(
   path: string,
@@ -96,9 +99,12 @@ export class HttpGameGateway implements GameGateway {
   ): GatewaySubscription {
     let closed = false;
     let cursor: string | null = null;
-    const controller = new AbortController();
+    let activeController: AbortController | null = null;
+    let reconnectTimer: number | null = null;
 
     const connect = async () => {
+      if (closed) return;
+      activeController = new AbortController();
       try {
         const response = await fetch(`${API_BASE}/rooms/${roomId}/stream`, {
           headers: {
@@ -106,9 +112,11 @@ export class HttpGameGateway implements GameGateway {
             Accept: 'text/event-stream',
             ...(cursor ? { 'Last-Event-ID': cursor } : {}),
           },
-          signal: controller.signal,
+          signal: activeController.signal,
         });
-        if (!response.ok || !response.body) throw new Error('Không thể mở luồng phòng.');
+        if (!response.ok || !response.body) {
+          throw new Error('Không thể mở luồng phòng.');
+        }
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -116,17 +124,33 @@ export class HttpGameGateway implements GameGateway {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          const events = buffer.split('\n\n');
+          const events = buffer.split(/\r?\n\r?\n/);
           buffer = events.pop() ?? '';
           for (const event of events) {
             const id = event.match(/^id:\s*(.+)$/m)?.[1];
-            const data = event.match(/^data:\s*(.+)$/m)?.[1];
+            const data = event
+              .split(/\r?\n/)
+              .filter((line) => line.startsWith('data:'))
+              .map((line) => line.slice(5).trimStart())
+              .join('\n');
             if (id) cursor = id;
             if (data && !closed) onUpdate(JSON.parse(data) as RoomSnapshot);
           }
         }
       } catch (error) {
-        if (!closed) onError?.(error instanceof Error ? error : new Error('Luồng phòng bị gián đoạn.'));
+        if (!closed) {
+          onError?.(
+            error instanceof Error ? error : new Error('Luồng phòng bị gián đoạn.'),
+          );
+        }
+      } finally {
+        activeController = null;
+        if (!closed) {
+          reconnectTimer = window.setTimeout(() => {
+            reconnectTimer = null;
+            void connect();
+          }, SSE_RECONNECT_DELAY_MS);
+        }
       }
     };
     void connect();
@@ -145,7 +169,8 @@ export class HttpGameGateway implements GameGateway {
     return {
       close: () => {
         closed = true;
-        controller.abort();
+        activeController?.abort();
+        if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
         window.clearInterval(fallback);
       },
     };

@@ -83,8 +83,18 @@ const FALLBACK_REFS: ReferenceTrajectories = {
 
 export default function ResultChart({ playerScores }: ResultChartProps) {
   const [refs, setRefs] = useState<ReferenceTrajectories>(FALLBACK_REFS);
+  const [canRender, setCanRender] = useState(false);
 
   useEffect(() => {
+    const query = window.matchMedia('(max-width: 560px)');
+    const sync = () => setCanRender(!query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (!canRender) return;
     let cancelled = false;
     getGameGateway().getReferenceTrajectories()
       .then((data) => {
@@ -96,7 +106,7 @@ export default function ResultChart({ playerScores }: ResultChartProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canRender]);
 
   const chartData: ChartDataPoint[] = useMemo(() => {
     const labels = refs.labels || FALLBACK_REFS.labels;
@@ -113,6 +123,8 @@ export default function ResultChart({ playerScores }: ResultChartProps) {
     const [start, end] = period.split('-');
     return start && end ? `${start}-${end.slice(-2)}` : period;
   };
+
+  if (!canRender) return null;
 
   return (
     <div className="w-full">

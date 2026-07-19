@@ -47,6 +47,8 @@ export default function GameContainer() {
   const subscriptionRef = useRef<GatewaySubscription | null>(null);
   const onboardingBusyRef = useRef(false);
   const resumedOnboardingRef = useRef(false);
+  const endedRoomRef = useRef<string | null>(null);
+  const reconciledSessionRef = useRef<string | null>(null);
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingEntryMode, setOnboardingEntryMode] = useState(false);
@@ -107,6 +109,23 @@ export default function GameContainer() {
   }, [roomId, subscribe]);
 
   useEffect(() => {
+    const syncKey =
+      room?.status === 'IN_PROGRESS' && roomId && sessionId
+        ? `${roomId}:${sessionId}`
+        : null;
+    if (!syncKey) {
+      reconciledSessionRef.current = null;
+      return;
+    }
+    if (reconciledSessionRef.current === syncKey) return;
+    reconciledSessionRef.current = syncKey;
+
+    void syncSession().then((snapshot) => {
+      if (snapshot) loadSession(snapshot, true);
+    });
+  }, [loadSession, room?.status, roomId, sessionId, syncSession]);
+
+  useEffect(() => {
     if (room && !sessionId) {
       resetGame();
       leaveRoom();
@@ -117,19 +136,22 @@ export default function GameContainer() {
       loadSession(sessionSnapshot, room.status === 'IN_PROGRESS');
       return;
     }
-    if (
-      room.status === 'IN_PROGRESS' &&
-      [GamePhase.PORTAL, GamePhase.LOBBY].includes(phase)
-    ) {
-      void syncSession().then((snapshot) => {
-        if (snapshot) loadSession(snapshot, true);
-      });
+    if (room.status !== 'ENDED') {
+      endedRoomRef.current = null;
+      return;
     }
-    if (room.status === 'ENDED') handleRoomEnded();
+    if (endedRoomRef.current === room.roomId) return;
+    endedRoomRef.current = room.roomId;
+    void syncSession().then((snapshot) => {
+      if (snapshot?.completed && snapshot.finalResult) {
+        loadSession(snapshot);
+        return;
+      }
+      handleRoomEnded();
+    });
   }, [
     handleRoomEnded,
     loadSession,
-    phase,
     room,
     leaveRoom,
     resetGame,

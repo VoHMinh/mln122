@@ -11,6 +11,9 @@ export default defineConfig({
   webServer: {
     command: 'npm.cmd run dev -- --hostname 127.0.0.1 --port 3000',
     url: 'http://localhost:3000/game',
+    env: {
+      NEXT_PUBLIC_GAME_API_MODE: 'mock',
+    },
     reuseExistingServer: true,
     timeout: 120_000,
   },
