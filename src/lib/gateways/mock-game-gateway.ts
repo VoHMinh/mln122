@@ -7,14 +7,19 @@ import {
 } from '@/lib/game-engine';
 import type {
   CompleteResponse,
+  CreateRoomRequest,
   CreateRoomResponse,
   GatewaySubscription,
+  GroupLeaderboardEntry,
+  JoinRoomRequest,
   JoinRoomResponse,
   LeaderboardEntry,
   LeaderboardResponse,
   OutcomeType,
+  PlayerHistoryEntry,
   ReferenceTrajectories,
   RoomParticipant,
+  RoomPreview,
   RoomSnapshot,
   RoundRequest,
   RoundResolution,
@@ -28,12 +33,21 @@ type StoredRoom = RoomSnapshot & {
 
 type StoredSession = SessionSnapshot & {
   playerToken: string;
+  profileToken: string;
   completedAt: string | null;
+};
+
+type StoredHistoryRef = {
+  roomId: string;
+  sessionId: string;
+  playerToken: string;
+  joinedAt: string;
 };
 
 const ROOM_PREFIX = 'mln2030:room:';
 const ROOM_CODE_PREFIX = 'mln2030:room-code:';
 const SESSION_PREFIX = 'mln2030:session:';
+const PROFILE_HISTORY_PREFIX = 'mln2030:profile-history:';
 const LOCAL_EVENT = 'mln2030:room-update';
 
 const memory = new Map<string, string>();
@@ -83,6 +97,8 @@ function readJson<T>(key: string): T | null {
 function getStoredRoom(roomId: string): StoredRoom {
   const room = readJson<StoredRoom>(`${ROOM_PREFIX}${roomId}`);
   if (!room) throw new Error('Phòng không tồn tại hoặc đã bị xóa.');
+  room.roomName ||= `Phòng ${room.roomCode}`;
+  room.groupNames = room.groupNames?.length ? room.groupNames : ['Nhóm 1'];
   if (
     room.status === 'IN_PROGRESS' &&
     room.endsAt &&
@@ -97,6 +113,10 @@ function getStoredRoom(roomId: string): StoredRoom {
 function getStoredSession(sessionId: string): StoredSession {
   const session = readJson<StoredSession>(`${SESSION_PREFIX}${sessionId}`);
   if (!session) throw new Error('Không tìm thấy phiên người chơi.');
+  const legacy = session as StoredSession & { className?: string };
+  session.groupName ||= legacy.className || 'Nhóm 1';
+  session.readiness ||= session.completed ? 'COMPLETED' : 'READY';
+  session.joinedAt ||= new Date().toISOString();
   return session;
 }
 
@@ -109,10 +129,19 @@ function saveSession(session: StoredSession) {
   storageSet(`${SESSION_PREFIX}${session.sessionId}`, JSON.stringify(session));
 }
 
+function saveHistoryRef(profileToken: string, ref: StoredHistoryRef) {
+  const key = `${PROFILE_HISTORY_PREFIX}${profileToken}`;
+  const refs = readJson<StoredHistoryRef[]>(key) ?? [];
+  const next = [ref, ...refs.filter((item) => item.sessionId !== ref.sessionId)];
+  storageSet(key, JSON.stringify(next));
+}
+
 function publicRoom(room: StoredRoom): RoomSnapshot {
   const {
     roomId,
     roomCode: code,
+    roomName,
+    groupNames,
     status,
     durationSeconds,
     endsAt,
@@ -122,6 +151,8 @@ function publicRoom(room: StoredRoom): RoomSnapshot {
   return {
     roomId,
     roomCode: code,
+    roomName,
+    groupNames,
     status,
     durationSeconds,
     endsAt,
@@ -144,7 +175,8 @@ function participantFromSession(session: StoredSession): RoomParticipant {
   return {
     sessionId: session.sessionId,
     nickname: session.nickname,
-    className: session.className,
+    groupName: session.groupName,
+    readiness: session.readiness,
     currentRound: session.currentRound,
     completed: session.completed,
     outcomeType: session.finalResult?.outcomeType ?? null,
@@ -175,8 +207,13 @@ function updateRoomParticipant(session: StoredSession) {
 }
 
 export class MockGameGateway implements GameGateway {
-  async createRoom(hostName: string, durationSeconds = 600): Promise<CreateRoomResponse> {
+  async createRoom(request: CreateRoomRequest): Promise<CreateRoomResponse> {
     await wait();
+    const roomName = request.roomName.trim();
+    const groupNames = [...new Set(request.groupNames.map((name) => name.trim()).filter(Boolean))];
+    if (!roomName || groupNames.length === 0) {
+      throw new Error('Tên phòng và ít nhất một nhóm là bắt buộc.');
+    }
     let code = roomCode();
     while (storageGet(`${ROOM_CODE_PREFIX}${code}`)) code = roomCode();
     const roomId = randomId();
@@ -184,8 +221,10 @@ export class MockGameGateway implements GameGateway {
     const room: StoredRoom = {
       roomId,
       roomCode: code,
+      roomName,
+      groupNames,
       status: 'WAITING',
-      durationSeconds,
+      durationSeconds: request.durationSeconds ?? 600,
       endsAt: null,
       participants: [],
       createdAt: new Date().toISOString(),
@@ -196,19 +235,37 @@ export class MockGameGateway implements GameGateway {
     return { room: publicRoom(room), hostToken };
   }
 
-  async joinRoom(
-    code: string,
-    nickname: string,
-    className: string,
-  ): Promise<JoinRoomResponse> {
-    await wait();
+  async getRoomPreview(code: string): Promise<RoomPreview> {
+    await wait(40);
     const normalizedCode = code.trim().toUpperCase();
     const roomId = storageGet(`${ROOM_CODE_PREFIX}${normalizedCode}`);
     if (!roomId) throw new Error('Mã phòng không tồn tại.');
     const room = getStoredRoom(roomId);
+    return {
+      roomId: room.roomId,
+      roomCode: room.roomCode,
+      roomName: room.roomName,
+      groupNames: room.groupNames,
+      status: room.status,
+      participantCount: room.participants.length,
+    };
+  }
+
+  async joinRoom(request: JoinRoomRequest): Promise<JoinRoomResponse> {
+    await wait();
+    const normalizedCode = request.roomCode.trim().toUpperCase();
+    const roomId = storageGet(`${ROOM_CODE_PREFIX}${normalizedCode}`);
+    if (!roomId) throw new Error('Mã phòng không tồn tại.');
+    const room = getStoredRoom(roomId);
     if (room.status !== 'WAITING') throw new Error('Phòng đã bắt đầu hoặc đã kết thúc.');
+    const nickname = request.nickname.trim();
+    const groupName = request.groupName.trim();
+    if (!nickname) throw new Error('Tên hiển thị là bắt buộc.');
+    if (!room.groupNames.includes(groupName)) {
+      throw new Error('Nhóm đã chọn không thuộc phòng này.');
+    }
     const duplicate = room.participants.some(
-      (item) => item.nickname.toLocaleLowerCase('vi') === nickname.trim().toLocaleLowerCase('vi'),
+      (item) => item.nickname.toLocaleLowerCase('vi') === nickname.toLocaleLowerCase('vi'),
     );
     if (duplicate) throw new Error('Tên hiển thị đã được dùng trong phòng này.');
 
@@ -218,27 +275,59 @@ export class MockGameGateway implements GameGateway {
       ...createInitialSession(
         sessionId,
         room.roomId,
-        nickname.trim(),
-        className.trim(),
+        nickname,
+        groupName,
         room.seed,
       ),
       playerToken,
+      profileToken: request.profileToken,
       completedAt: null,
     };
     saveSession(session);
+    saveHistoryRef(request.profileToken, {
+      roomId: room.roomId,
+      sessionId,
+      playerToken,
+      joinedAt: session.joinedAt,
+    });
     room.participants.push(participantFromSession(session));
     saveRoom(room);
     publish(room.roomId);
     return { room: publicRoom(room), session, playerToken };
   }
 
-  async startRoom(roomId: string, hostToken: string): Promise<RoomSnapshot> {
+  async markReady(sessionId: string, playerToken: string): Promise<RoomSnapshot> {
+    await wait(60);
+    const session = getStoredSession(sessionId);
+    validatePlayer(session, playerToken);
+    const room = getStoredRoom(session.roomId);
+    if (room.status === 'ENDED') throw new Error('Phòng đã kết thúc.');
+    session.readiness = room.status === 'IN_PROGRESS' ? 'PLAYING' : 'READY';
+    saveSession(session);
+    updateRoomParticipant(session);
+    return publicRoom(getStoredRoom(room.roomId));
+  }
+
+  async startRoom(roomId: string, hostToken: string, force = false): Promise<RoomSnapshot> {
     await wait();
     const room = getStoredRoom(roomId);
     validateHost(room, hostToken);
     if (room.status !== 'WAITING') throw new Error('Phòng không còn ở trạng thái chờ.');
+    const pendingCount = room.participants.filter(
+      (participant) => participant.readiness !== 'READY',
+    ).length;
+    if (pendingCount > 0 && !force) {
+      throw new Error(`Còn ${pendingCount} người chưa sẵn sàng.`);
+    }
     room.status = 'IN_PROGRESS';
     room.endsAt = new Date(Date.now() + room.durationSeconds * 1000).toISOString();
+    room.participants = room.participants.map((participant) => {
+      if (participant.readiness !== 'READY') return participant;
+      const session = getStoredSession(participant.sessionId);
+      session.readiness = 'PLAYING';
+      saveSession(session);
+      return participantFromSession(session);
+    });
     saveRoom(room);
     publish(roomId);
     return publicRoom(room);
@@ -318,6 +407,9 @@ export class MockGameGateway implements GameGateway {
     validatePlayer(session, playerToken);
     const room = getStoredRoom(session.roomId);
     if (room.status !== 'IN_PROGRESS') throw new Error('Phòng chưa bắt đầu hoặc đã kết thúc.');
+    if (session.readiness === 'ONBOARDING') {
+      throw new Error('Hãy hoàn thành hướng dẫn trước khi ra quyết định.');
+    }
 
     const duplicate = session.histories.find(
       (history) => history.submissionId === request.submissionId,
@@ -331,6 +423,7 @@ export class MockGameGateway implements GameGateway {
     const stored: StoredSession = {
       ...nextSession,
       playerToken: session.playerToken,
+      profileToken: session.profileToken,
       completedAt: session.completedAt,
     };
     saveSession(stored);
@@ -352,7 +445,9 @@ export class MockGameGateway implements GameGateway {
     const { result, nextSession } = completeSessionState(session);
     const stored: StoredSession = {
       ...nextSession,
+      readiness: 'COMPLETED',
       playerToken: session.playerToken,
+      profileToken: session.profileToken,
       completedAt: new Date().toISOString(),
     };
     saveSession(stored);
@@ -383,7 +478,7 @@ export class MockGameGateway implements GameGateway {
         rank: rankBySession.get(session.sessionId) ?? null,
         sessionId: session.sessionId,
         nickname: session.nickname,
-        className: session.className,
+        groupName: session.groupName,
         finalScore: session.finalResult?.finalScore ?? null,
         outcomeType: session.finalResult?.outcomeType ?? null,
         completed: session.completed,
@@ -416,11 +511,52 @@ export class MockGameGateway implements GameGateway {
         choice: (top?.[0] as 'A' | 'B' | 'C' | undefined) ?? null,
         count: top?.[1] ?? 0,
       };
+      });
+
+    const groups: GroupLeaderboardEntry[] = room.groupNames.map((groupName) => {
+      const members = sessions.filter((session) => session.groupName === groupName);
+      const champion = members
+        .filter((session) => session.completed && session.finalResult)
+        .sort(
+          (a, b) =>
+            (b.finalResult?.finalScore ?? 0) - (a.finalResult?.finalScore ?? 0),
+        )[0];
+      return {
+        rank: null,
+        groupName,
+        memberCount: members.length,
+        completionCount: members.filter((session) => session.completed).length,
+        championSessionId: champion?.sessionId ?? null,
+        championName: champion?.nickname ?? null,
+        championScore: champion?.finalResult?.finalScore ?? null,
+      };
+    });
+    const rankedGroups = groups
+      .filter((group) => group.championScore !== null)
+      .sort((a, b) => (b.championScore ?? 0) - (a.championScore ?? 0));
+    const groupRank = new Map(
+      rankedGroups.map((group) => [
+        group.groupName,
+        rankedGroups.findIndex(
+          (candidate) => candidate.championScore === group.championScore,
+        ) + 1,
+      ]),
+    );
+    groups.forEach((group) => {
+      group.rank = groupRank.get(group.groupName) ?? null;
     });
 
     return {
+      roomId: room.roomId,
+      roomCode: room.roomCode,
+      roomName: room.roomName,
       roomStatus: room.status,
       entries,
+      groups: groups.sort((a, b) => {
+        if (a.rank === null) return 1;
+        if (b.rank === null) return -1;
+        return a.rank - b.rank;
+      }),
       insights: {
         completionCount: completed.length,
         totalPlayers: sessions.length,
@@ -429,6 +565,44 @@ export class MockGameGateway implements GameGateway {
       },
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  async getPlayerHistory(profileToken: string): Promise<PlayerHistoryEntry[]> {
+    await wait(50);
+    const refs =
+      readJson<StoredHistoryRef[]>(`${PROFILE_HISTORY_PREFIX}${profileToken}`) ?? [];
+    return refs.flatMap((ref) => {
+      try {
+        const session = getStoredSession(ref.sessionId);
+        const room = getStoredRoom(ref.roomId);
+        const completed = room.participants
+          .map((participant) => getStoredSession(participant.sessionId))
+          .filter((item) => item.completed && item.finalResult)
+          .sort(
+            (a, b) =>
+              (b.finalResult?.finalScore ?? 0) - (a.finalResult?.finalScore ?? 0),
+          );
+        const rank =
+          completed.findIndex((item) => item.sessionId === session.sessionId) + 1;
+        return [{
+          roomId: room.roomId,
+          roomCode: room.roomCode,
+          roomName: room.roomName,
+          roomStatus: room.status,
+          sessionId: session.sessionId,
+          playerToken: ref.playerToken,
+          nickname: session.nickname,
+          groupName: session.groupName,
+          joinedAt: session.joinedAt,
+          completedAt: session.completedAt,
+          finalScore: session.finalResult?.finalScore ?? null,
+          outcomeType: session.finalResult?.outcomeType ?? null,
+          rank: rank > 0 ? rank : null,
+        }];
+      } catch {
+        return [];
+      }
+    });
   }
 
   async getReferenceTrajectories(): Promise<ReferenceTrajectories> {

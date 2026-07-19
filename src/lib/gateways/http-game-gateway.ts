@@ -1,11 +1,15 @@
 import type { GameGateway } from '@/lib/game-gateway';
 import type {
   CompleteResponse,
+  CreateRoomRequest,
   CreateRoomResponse,
   GatewaySubscription,
+  JoinRoomRequest,
   JoinRoomResponse,
   LeaderboardResponse,
+  PlayerHistoryEntry,
   ReferenceTrajectories,
+  RoomPreview,
   RoomSnapshot,
   RoundRequest,
   RoundResolution,
@@ -42,22 +46,38 @@ async function apiFetch<T>(
 }
 
 export class HttpGameGateway implements GameGateway {
-  createRoom(hostName: string, durationSeconds = 600) {
+  createRoom(request: CreateRoomRequest) {
     return apiFetch<CreateRoomResponse>('/rooms', {
       method: 'POST',
-      body: JSON.stringify({ hostName, durationSeconds }),
+      body: JSON.stringify(request),
     });
   }
 
-  joinRoom(roomCode: string, nickname: string, className: string) {
+  getRoomPreview(roomCode: string) {
+    return apiFetch<RoomPreview>(`/rooms/preview/${encodeURIComponent(roomCode)}`);
+  }
+
+  joinRoom(request: JoinRoomRequest) {
     return apiFetch<JoinRoomResponse>('/rooms/join', {
       method: 'POST',
-      body: JSON.stringify({ roomCode, nickname, className }),
+      body: JSON.stringify(request),
     });
   }
 
-  startRoom(roomId: string, hostToken: string) {
-    return apiFetch<RoomSnapshot>(`/rooms/${roomId}/start`, { method: 'POST' }, hostToken);
+  markReady(sessionId: string, playerToken: string) {
+    return apiFetch<RoomSnapshot>(
+      `/sessions/${sessionId}/ready`,
+      { method: 'POST' },
+      playerToken,
+    );
+  }
+
+  startRoom(roomId: string, hostToken: string, force = false) {
+    return apiFetch<RoomSnapshot>(
+      `/rooms/${roomId}/start`,
+      { method: 'POST', body: JSON.stringify({ force }) },
+      hostToken,
+    );
   }
 
   endRoom(roomId: string, hostToken: string) {
@@ -153,6 +173,14 @@ export class HttpGameGateway implements GameGateway {
 
   getLeaderboard(roomId: string, token?: string) {
     return apiFetch<LeaderboardResponse>(`/rooms/${roomId}/leaderboard`, {}, token);
+  }
+
+  getPlayerHistory(profileToken: string) {
+    return apiFetch<PlayerHistoryEntry[]>(
+      '/profiles/me/history',
+      {},
+      profileToken,
+    );
   }
 
   getReferenceTrajectories() {

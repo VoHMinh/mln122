@@ -4,11 +4,23 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { getGameGateway } from '@/lib/game-gateway';
 import type {
+  CreateRoomRequest,
   GatewaySubscription,
   RoomRole,
   RoomSnapshot,
   SessionSnapshot,
 } from '@/types';
+
+export type CreateRoomInput = CreateRoomRequest & {
+  nickname: string;
+  groupName: string;
+};
+
+export type JoinRoomInput = {
+  roomCode: string;
+  nickname: string;
+  groupName: string;
+};
 
 type RoomState = {
   role: RoomRole | null;
@@ -17,11 +29,13 @@ type RoomState = {
   playerToken: string | null;
   sessionId: string | null;
   sessionSnapshot: SessionSnapshot | null;
+  profileToken: string | null;
   isLoading: boolean;
   error: string | null;
-  createRoom: (nickname: string, className: string) => Promise<void>;
-  joinRoom: (roomCode: string, nickname: string, className: string) => Promise<void>;
-  startRoom: () => Promise<void>;
+  createRoom: (input: CreateRoomInput) => Promise<boolean>;
+  joinRoom: (input: JoinRoomInput) => Promise<boolean>;
+  markReady: () => Promise<void>;
+  startRoom: (force?: boolean) => Promise<void>;
   endRoom: () => Promise<void>;
   syncRoom: () => Promise<void>;
   syncSession: () => Promise<SessionSnapshot | null>;
@@ -38,6 +52,7 @@ const initialRoomState = {
   playerToken: null,
   sessionId: null,
   sessionSnapshot: null,
+  profileToken: null,
   isLoading: false,
   error: null,
 };
@@ -46,25 +61,38 @@ function message(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function createProfileToken() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export const useRoomStore = create<RoomState>()(
   persist(
     (set, get) => ({
       ...initialRoomState,
 
-      createRoom: async (nickname, className) => {
-        if (!nickname.trim()) {
-          set({ error: 'Hãy nhập tên hiển thị trước khi tạo phòng.' });
-          return;
+      createRoom: async (input) => {
+        if (!input.nickname.trim() || !input.roomName.trim()) {
+          set({ error: 'Tên phòng và tên hiển thị là bắt buộc.' });
+          return false;
         }
         set({ isLoading: true, error: null });
         try {
           const gateway = getGameGateway();
-          const created = await gateway.createRoom(nickname.trim(), 600);
-          const joined = await gateway.joinRoom(
-            created.room.roomCode,
-            nickname.trim(),
-            className.trim(),
-          );
+          const profileToken = get().profileToken ?? createProfileToken();
+          const created = await gateway.createRoom({
+            roomName: input.roomName.trim(),
+            groupNames: input.groupNames,
+            durationSeconds: input.durationSeconds ?? 600,
+          });
+          const joined = await gateway.joinRoom({
+            roomCode: created.room.roomCode,
+            nickname: input.nickname.trim(),
+            groupName: input.groupName.trim(),
+            profileToken,
+          });
           set({
             role: 'HOST',
             room: joined.room,
@@ -72,28 +100,33 @@ export const useRoomStore = create<RoomState>()(
             playerToken: joined.playerToken,
             sessionId: joined.session.sessionId,
             sessionSnapshot: joined.session,
+            profileToken,
             isLoading: false,
           });
+          return true;
         } catch (error) {
           set({
             error: message(error, 'Không thể tạo phòng. Vui lòng thử lại.'),
             isLoading: false,
           });
+          return false;
         }
       },
 
-      joinRoom: async (roomCode, nickname, className) => {
-        if (!roomCode.trim() || !nickname.trim()) {
-          set({ error: 'Mã phòng và tên hiển thị là bắt buộc.' });
-          return;
+      joinRoom: async (input) => {
+        if (!input.roomCode.trim() || !input.nickname.trim() || !input.groupName.trim()) {
+          set({ error: 'Mã phòng, tên hiển thị và nhóm là bắt buộc.' });
+          return false;
         }
         set({ isLoading: true, error: null });
         try {
-          const joined = await getGameGateway().joinRoom(
-            roomCode,
-            nickname.trim(),
-            className.trim(),
-          );
+          const profileToken = get().profileToken ?? createProfileToken();
+          const joined = await getGameGateway().joinRoom({
+            roomCode: input.roomCode,
+            nickname: input.nickname.trim(),
+            groupName: input.groupName.trim(),
+            profileToken,
+          });
           set({
             role: 'PLAYER',
             room: joined.room,
@@ -101,22 +134,41 @@ export const useRoomStore = create<RoomState>()(
             playerToken: joined.playerToken,
             sessionId: joined.session.sessionId,
             sessionSnapshot: joined.session,
+            profileToken,
             isLoading: false,
           });
+          return true;
         } catch (error) {
           set({
             error: message(error, 'Không thể vào phòng. Vui lòng kiểm tra lại mã.'),
             isLoading: false,
           });
+          return false;
         }
       },
 
-      startRoom: async () => {
+      markReady: async () => {
+        const { sessionId, playerToken } = get();
+        if (!sessionId || !playerToken) return;
+        set({ isLoading: true, error: null });
+        try {
+          const room = await getGameGateway().markReady(sessionId, playerToken);
+          const sessionSnapshot = await getGameGateway().getSession(sessionId, playerToken);
+          set({ room, sessionSnapshot, isLoading: false });
+        } catch (error) {
+          set({
+            error: message(error, 'Không thể cập nhật trạng thái sẵn sàng.'),
+            isLoading: false,
+          });
+        }
+      },
+
+      startRoom: async (force = false) => {
         const { room, hostToken } = get();
         if (!room || !hostToken) return;
         set({ isLoading: true, error: null });
         try {
-          const snapshot = await getGameGateway().startRoom(room.roomId, hostToken);
+          const snapshot = await getGameGateway().startRoom(room.roomId, hostToken, force);
           set({ room: snapshot, isLoading: false });
         } catch (error) {
           set({
@@ -182,7 +234,10 @@ export const useRoomStore = create<RoomState>()(
       },
 
       clearError: () => set({ error: null }),
-      leaveRoom: () => set({ ...initialRoomState }),
+      leaveRoom: () => set((state) => ({
+        ...initialRoomState,
+        profileToken: state.profileToken,
+      })),
     }),
     {
       name: 'mln2030-room-store',
@@ -194,8 +249,8 @@ export const useRoomStore = create<RoomState>()(
         playerToken: state.playerToken,
         sessionId: state.sessionId,
         sessionSnapshot: state.sessionSnapshot,
+        profileToken: state.profileToken,
       }),
     },
   ),
 );
-

@@ -14,15 +14,20 @@ const allocationLabels: AllocationTarget[] = [
   'FDI & chuyển giao',
 ];
 
+async function fillCreateForm(page: Page, nickname = 'Minh') {
+  await page.getByLabel('Tên phòng').fill('Đường đến 2030 - Ca kiểm thử');
+  await page.getByLabel('Tên hiển thị').fill(nickname);
+}
+
 async function enterFirstRound(page: Page) {
-  await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
-  await page.getByLabel('Tên hiển thị').fill('Minh');
-  await page.getByLabel('Lớp / nhóm (tùy chọn)').fill('SE18A01');
-  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  const create = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
+  await expect(create).toBeEnabled();
+  await fillCreateForm(page);
+  await create.click();
   await expect(page.getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa/ })).toBeVisible();
   await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
 
-  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
+  await expect(page.locator('.game2-lobby')).toBeVisible();
   await expect(page.getByText('Minh', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Bắt đầu phòng' }).click();
 
@@ -108,15 +113,34 @@ test('creates a room and reaches the first allocation stage', async ({ page }) =
   await enterFirstRound(page);
 });
 
-test('holds the room request until the onboarding is finished', async ({ page }) => {
-  await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
+test('aligns the join fields and keeps the group placeholder compact', async ({ page }) => {
+  await page.getByRole('button', { name: 'Vào phòng', exact: true }).click();
+  await page.getByLabel('Mã phòng', { exact: true }).fill('A4K9Q2');
   await page.getByLabel('Tên hiển thị').fill('Minh');
-  await page.getByLabel('Lớp / nhóm (tùy chọn)').fill('SE18A01');
-  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  await expect(page.getByText('Mã phòng không tồn tại.')).toBeVisible();
+
+  const nicknameBox = await page.getByLabel('Tên hiển thị').boundingBox();
+  const groupBox = await page.getByLabel('Nhóm', { exact: true }).boundingBox();
+  expect(nicknameBox).not.toBeNull();
+  expect(groupBox).not.toBeNull();
+  expect(Math.abs(nicknameBox!.y - groupBox!.y)).toBeLessThanOrEqual(1);
+  await expect(page.getByLabel('Nhóm', { exact: true })).toContainText('Mã chưa hợp lệ');
+});
+
+test('joins as onboarding and becomes ready only after the tour', async ({ page }) => {
+  const create = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
+  await expect(create).toBeEnabled();
+  await fillCreateForm(page);
+  await create.click();
 
   await expect(page.getByText('Tăng trưởng chỉ có ý nghĩa khi đi cùng nội lực.')).toBeVisible();
   await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).not.toBeVisible();
   await expect(page.getByText('01 / 10')).toBeVisible();
+  const readiness = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((item) => item.startsWith('mln2030:session:'));
+    return key ? JSON.parse(localStorage.getItem(key) ?? '{}').readiness : null;
+  });
+  expect(readiness).toBe('ONBOARDING');
 
   for (let step = 0; step < 9; step += 1) {
     await page.getByRole('button', { name: 'Tiếp theo' }).click();
@@ -124,8 +148,9 @@ test('holds the room request until the onboarding is finished', async ({ page })
   await expect(page.getByText('Cả phòng gặp cùng cú sốc, nhưng không chịu cùng thiệt hại.')).toBeVisible();
   await page.getByRole('button', { name: 'Tôi đã hiểu, vào phòng' }).click();
 
-  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
+  await expect(page.locator('.game2-lobby')).toBeVisible();
   await expect(page.getByText('Minh', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('Đã sẵn sàng', { exact: true })).toBeVisible();
 });
 
 test('replays the tutorial without changing the current room phase', async ({ page }) => {
@@ -160,9 +185,10 @@ test('opens and closes a glossary definition without cursor targeting it', async
 test('keeps allocation glossary placement stable and restores the native cursor in the tour', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Desktop placement and native custom-cursor behavior are covered here.');
 
-  await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeEnabled();
-  await page.getByLabel('Tên hiển thị').fill('Minh');
-  await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  const create = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
+  await expect(create).toBeEnabled();
+  await fillCreateForm(page);
+  await create.click();
   await expect(page.getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa/ })).toBeVisible();
   await expect(page.locator('.target-cursor-wrapper')).toHaveCSS('display', 'none');
   await expect(page.getByRole('button', { name: 'Tiếp theo' })).toHaveCSS('cursor', 'pointer');
@@ -201,7 +227,7 @@ test('stops at the round report until the player continues', async ({ page }) =>
 
 test('target cursor releases after leaving a command target', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Custom cursor is disabled on coarse pointers.');
-  const target = page.getByRole('button', { name: 'Tạo phòng và tham gia' });
+  const target = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
   await expect(target).toBeEnabled();
   await target.hover();
   await expect(page.locator('.target-cursor-frame')).toHaveAttribute('data-active', 'true');
@@ -211,7 +237,7 @@ test('target cursor releases after leaving a command target', async ({ page, isM
 
 test('target cursor releases disabled and unmounted targets', async ({ page, isMobile }) => {
   test.skip(isMobile, 'Custom cursor is disabled on coarse pointers.');
-  const target = page.getByRole('button', { name: 'Tạo phòng và tham gia' });
+  const target = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
   await expect(target).toBeEnabled();
   await target.hover();
   await expect(page.locator('.target-cursor-frame')).toHaveAttribute('data-active', 'true');
@@ -223,14 +249,51 @@ test('target cursor releases disabled and unmounted targets', async ({ page, isM
   await expect(page.locator('.target-cursor-frame')).not.toHaveAttribute('data-active', 'true');
 
   await target.evaluate((element) => element.removeAttribute('disabled'));
-  await page.getByLabel('Tên hiển thị').fill('Minh');
+  await fillCreateForm(page);
   await target.hover();
   await expect(page.locator('.target-cursor-frame')).toHaveAttribute('data-active', 'true');
   await target.click();
   await expect(page.getByRole('button', { name: 'Bỏ qua hướng dẫn' })).toBeVisible();
   await expect(page.locator('.target-cursor-frame')).not.toHaveAttribute('data-active', 'true');
   await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
-  await expect(page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.')).toBeVisible();
+  await expect(page.locator('.game2-lobby')).toBeVisible();
+});
+
+test('host can confirm a start while another player is still onboarding', async ({ page }) => {
+  const create = page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' });
+  await expect(create).toBeEnabled();
+  await fillCreateForm(page, 'Chủ phòng');
+  await create.click();
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
+  await expect(page.locator('.game2-lobby')).toBeVisible();
+  const roomCode = (await page.locator('.game2-room-code strong').textContent())?.trim();
+  expect(roomCode).toHaveLength(6);
+
+  const guest = await page.context().newPage();
+  const guestErrors: string[] = [];
+  guest.on('pageerror', (error) => guestErrors.push(error.message));
+  guest.on('console', (message) => {
+    if (message.type() === 'error') guestErrors.push(message.text());
+  });
+  await guest.goto('/game');
+  await guest.getByRole('button', { name: 'Rời phòng' }).click();
+  await guest.getByRole('button', { name: 'Vào phòng', exact: true }).click();
+  await guest.getByLabel('Mã phòng', { exact: true }).fill(roomCode!);
+  await expect(guest.getByText('Đường đến 2030 - Ca kiểm thử', { exact: true })).toBeVisible();
+  await guest.getByLabel('Tên hiển thị').fill('Thành viên đang xem tour');
+  await guest.getByRole('button', { name: 'Vào phòng và xem hướng dẫn' }).click();
+  await expect(guest.getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa/ })).toBeVisible();
+
+  const pendingAction = page.getByRole('button', { name: 'Kiểm tra 1 người chưa sẵn sàng' });
+  await expect(pendingAction).toBeVisible();
+  await expect(page.getByText('1/2', { exact: true })).toBeVisible();
+  await pendingAction.click();
+  await expect(page.getByRole('dialog', { name: 'Còn 1 người chưa sẵn sàng.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Bắt đầu với 1 người' }).click();
+  await expect(page.getByText('Năm 2025. Đồng hồ đã bắt đầu chạy.')).toBeVisible();
+
+  expect(guestErrors).toEqual([]);
+  await guest.close();
 });
 
 test.describe('deterministic 2030 outcomes', () => {
@@ -251,11 +314,17 @@ test.describe('deterministic 2030 outcomes', () => {
     await expect(page.getByRole('heading', { name: 'Đạt mục tiêu 2030 bằng nội lực' })).toBeVisible();
     await page.getByRole('button', { name: 'Xem bảng xếp hạng phòng' }).click();
     await expect(page.getByRole('heading', { name: 'Bảng xếp hạng phòng.' })).toBeVisible();
+    await expect(page.getByText('Nhóm 1', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Cá nhân', exact: true }).click();
     await expect(page.getByText('Minh', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Xem lại kết quả cá nhân' }).click();
     await expect(page.getByRole('heading', { name: 'Đạt mục tiêu 2030 bằng nội lực' })).toBeVisible();
     await page.getByRole('button', { name: 'Về sảnh' }).click();
-    await expect(page.getByRole('button', { name: 'Tạo phòng và tham gia' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tạo phòng và xem hướng dẫn' })).toBeVisible();
+    await page.getByRole('link', { name: 'Xếp hạng' }).click();
+    await expect(page.getByRole('heading', { name: 'Lịch sử các phòng đã tham gia.' })).toBeVisible();
+    await expect(page.getByText('Đường đến 2030 - Ca kiểm thử').first()).toBeVisible();
+    await expect(page.getByText('Hạng #1')).toBeVisible();
   });
 
   test('locks the dependent outcome with option 4C', async ({ page }) => {

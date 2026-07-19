@@ -2,6 +2,7 @@ export type PolicyChoice = 'A' | 'B' | 'C';
 export type OutcomeType = 'LEAPFROG' | 'DEPENDENT' | 'DISRUPTED';
 export type RoomStatus = 'WAITING' | 'IN_PROGRESS' | 'ENDED';
 export type RoomRole = 'HOST' | 'PLAYER';
+export type ParticipantReadiness = 'ONBOARDING' | 'READY' | 'PLAYING' | 'COMPLETED';
 export type ShockId = 'TALENT_DRAIN' | 'CYBER_DISRUPTION' | 'FDI_REPRICING';
 export type ShockSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -104,7 +105,9 @@ export interface SessionSnapshot {
   sessionId: string;
   roomId: string;
   nickname: string;
-  className: string;
+  groupName: string;
+  readiness: ParticipantReadiness;
+  joinedAt: string;
   currentRound: number;
   stateVersion: number;
   budgetForRound: number;
@@ -121,7 +124,7 @@ export interface SessionSnapshot {
 export interface CompleteResponse {
   sessionId: string;
   nickname: string;
-  className: string;
+  groupName: string;
   finalScore: number;
   outcomeType: OutcomeType;
   outcomeMessage: string;
@@ -144,7 +147,8 @@ export interface TurningPoint {
 export interface RoomParticipant {
   sessionId: string;
   nickname: string;
-  className: string;
+  groupName: string;
+  readiness: ParticipantReadiness;
   currentRound: number;
   completed: boolean;
   outcomeType: OutcomeType | null;
@@ -154,6 +158,8 @@ export interface RoomParticipant {
 export interface RoomSnapshot {
   roomId: string;
   roomCode: string;
+  roomName: string;
+  groupNames: string[];
   status: RoomStatus;
   durationSeconds: number;
   endsAt: string | null;
@@ -166,6 +172,28 @@ export interface CreateRoomResponse {
   hostToken: string;
 }
 
+export interface CreateRoomRequest {
+  roomName: string;
+  groupNames: string[];
+  durationSeconds?: number;
+}
+
+export interface JoinRoomRequest {
+  roomCode: string;
+  nickname: string;
+  groupName: string;
+  profileToken: string;
+}
+
+export interface RoomPreview {
+  roomId: string;
+  roomCode: string;
+  roomName: string;
+  groupNames: string[];
+  status: RoomStatus;
+  participantCount: number;
+}
+
 export interface JoinRoomResponse {
   room: RoomSnapshot;
   session: SessionSnapshot;
@@ -176,11 +204,21 @@ export interface LeaderboardEntry {
   rank: number | null;
   sessionId: string;
   nickname: string;
-  className: string;
+  groupName: string;
   finalScore: number | null;
   outcomeType: OutcomeType | null;
   completed: boolean;
   completedAt: string | null;
+}
+
+export interface GroupLeaderboardEntry {
+  rank: number | null;
+  groupName: string;
+  memberCount: number;
+  completionCount: number;
+  championSessionId: string | null;
+  championName: string | null;
+  championScore: number | null;
 }
 
 export interface RoomInsights {
@@ -195,10 +233,30 @@ export interface RoomInsights {
 }
 
 export interface LeaderboardResponse {
+  roomId: string;
+  roomCode: string;
+  roomName: string;
   roomStatus: RoomStatus;
   entries: LeaderboardEntry[];
+  groups: GroupLeaderboardEntry[];
   insights: RoomInsights;
   updatedAt: string;
+}
+
+export interface PlayerHistoryEntry {
+  roomId: string;
+  roomCode: string;
+  roomName: string;
+  roomStatus: RoomStatus;
+  sessionId: string;
+  playerToken: string;
+  nickname: string;
+  groupName: string;
+  joinedAt: string;
+  completedAt: string | null;
+  finalScore: number | null;
+  outcomeType: OutcomeType | null;
+  rank: number | null;
 }
 
 export interface ReferenceTrajectories {
