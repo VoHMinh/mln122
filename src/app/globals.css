@@ -2908,3 +2908,908 @@ body {
   .game2-result > header h1 { font-size: 2.1rem; }
   .game2-result > header > p:last-child { margin-top: .35rem; }
 }
+
+/* Game guidance: shared glossary, interactive rehearsal, and permanent reference */
+.game2-glossary-term {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: .24rem;
+  border-bottom: 1px dotted rgb(73 209 200 / .52);
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  line-height: inherit;
+  text-align: inherit;
+  white-space: normal;
+}
+.game2-glossary-term:hover,
+.game2-glossary-term:focus-visible {
+  border-bottom-color: #49d1c8;
+  color: #bdf8f3;
+  outline: none;
+}
+.game2-glossary-term svg {
+  flex: none;
+  color: #49d1c8;
+  opacity: .74;
+}
+.game2-run-metrics .game2-glossary-term {
+  overflow: hidden;
+  justify-self: start;
+  font-size: .68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.game2-run-metrics .game2-glossary-term svg { display: block; }
+.game2-allocation-control h3 .game2-glossary-term { color: inherit; font-weight: inherit; }
+.game2-budget-readout .game2-glossary-term { color: #768d94; font-size: .68rem; }
+.game2-path-note .game2-glossary-term { display: inline; color: #8fb3b5; }
+.game2-step-bridge .game2-glossary-term { font-size: inherit; }
+.game2-metric-delta > span .game2-glossary-term,
+.game2-debrief-metrics .game2-glossary-term,
+.game2-result-metrics .game2-glossary-term {
+  color: inherit;
+  font-size: inherit;
+}
+
+.game2-glossary-popover {
+  position: fixed;
+  z-index: 160;
+  max-height: min(33rem, calc(100dvh - 1.5rem));
+  overflow: auto;
+  padding: .9rem;
+  border: 1px solid rgb(73 209 200 / .4);
+  border-radius: 4px;
+  color: #aabdc1;
+  background: rgb(5 16 21 / .98);
+  box-shadow: 0 22px 65px rgb(0 0 0 / .5), inset 0 1px rgb(255 255 255 / .05);
+}
+.game2-glossary-popover::before {
+  position: absolute;
+  left: calc(50% - 5px);
+  width: 9px;
+  height: 9px;
+  border: solid rgb(73 209 200 / .4);
+  background: #07141a;
+  content: '';
+  transform: rotate(45deg);
+}
+.game2-glossary-popover.is-top::before {
+  bottom: -5px;
+  border-width: 0 1px 1px 0;
+}
+.game2-glossary-popover.is-bottom::before {
+  top: -5px;
+  border-width: 1px 0 0 1px;
+}
+.game2-glossary-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: .8rem;
+}
+.game2-glossary-heading span,
+.game2-glossary-heading strong { display: block; }
+.game2-glossary-heading span {
+  color: #49d1c8;
+  font-family: var(--font-mono);
+  font-size: .52rem;
+  text-transform: uppercase;
+}
+.game2-glossary-heading strong {
+  margin-top: .22rem;
+  color: #eef7f7;
+  font-size: .86rem;
+}
+.game2-glossary-heading button {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / .12);
+  color: #82999f;
+}
+.game2-glossary-short {
+  margin-top: .65rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid rgb(255 255 255 / .09);
+  color: #d5e3e3;
+  font-size: .72rem;
+  line-height: 1.45;
+}
+.game2-glossary-popover dl {
+  display: grid;
+  gap: .55rem;
+  margin-top: .65rem;
+}
+.game2-glossary-popover dl div {
+  display: grid;
+  grid-template-columns: 6.2rem 1fr;
+  gap: .55rem;
+}
+.game2-glossary-popover dt {
+  color: #e8a35c;
+  font-family: var(--font-mono);
+  font-size: .54rem;
+}
+.game2-glossary-popover dd {
+  color: #90a7ac;
+  font-size: .63rem;
+  line-height: 1.48;
+}
+.game2-glossary-popover code,
+.game2-glossary-detail code {
+  display: block;
+  margin-top: .7rem;
+  padding: .55rem .65rem;
+  border-left: 2px solid #49d1c8;
+  color: #9dd7d3;
+  background: rgb(73 209 200 / .055);
+  font-family: var(--font-mono);
+  font-size: .56rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.game2-briefing-actions {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+.game2-briefing-tour {
+  display: inline-flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: 0 .7rem;
+  border: 1px solid rgb(73 209 200 / .3);
+  color: #9edbd7;
+  background: rgb(73 209 200 / .045);
+  font-family: var(--font-mono);
+  font-size: .58rem;
+}
+.game2-briefing-tour:hover { border-color: #49d1c8; color: #e1fffc; }
+.game2-briefing-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid rgb(255 255 255 / .1);
+}
+.game2-briefing-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem 1.75rem 1.75rem;
+}
+.game2-goal-equation {
+  display: grid;
+  grid-template-columns: auto 8rem 1fr;
+  align-items: center;
+  gap: .7rem;
+  margin-top: 1.3rem;
+  padding: .75rem 0;
+  border-top: 1px solid rgb(255 255 255 / .1);
+  border-bottom: 1px solid rgb(255 255 255 / .1);
+  color: #49d1c8;
+}
+.game2-goal-equation span { color: #81999f; font-size: .7rem; }
+.game2-goal-equation strong { color: #dceaea; font-family: var(--font-mono); font-size: .68rem; }
+.game2-briefing-glossary {
+  display: grid;
+  grid-template-columns: minmax(11rem, .55fr) minmax(0, 1.45fr);
+  gap: 1.4rem;
+  min-height: 24rem;
+}
+.game2-glossary-index {
+  display: grid;
+  align-content: start;
+  border-right: 1px solid rgb(255 255 255 / .1);
+}
+.game2-glossary-index button {
+  display: grid;
+  grid-template-columns: 1.7rem 1fr;
+  gap: .45rem;
+  padding: .48rem .75rem .48rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / .06);
+  color: #80969c;
+  font-size: .66rem;
+  text-align: left;
+}
+.game2-glossary-index button span {
+  color: #607980;
+  font-family: var(--font-mono);
+  font-size: .53rem;
+}
+.game2-glossary-index button:hover,
+.game2-glossary-index button.is-active { color: #e5f3f2; }
+.game2-glossary-index button.is-active span { color: #e8a35c; }
+.game2-glossary-detail { min-width: 0; }
+.game2-glossary-detail h3 {
+  margin-top: .35rem;
+  color: #eff7f7;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 620;
+}
+.game2-glossary-detail > strong {
+  display: block;
+  margin-top: .45rem;
+  color: #9fb3b8;
+  font-size: .75rem;
+  font-weight: 500;
+}
+.game2-glossary-detail dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .7rem 1rem;
+  margin-top: 1rem;
+}
+.game2-glossary-detail dl div {
+  padding-top: .6rem;
+  border-top: 1px solid rgb(255 255 255 / .08);
+}
+.game2-glossary-detail dt {
+  color: #49d1c8;
+  font-family: var(--font-mono);
+  font-size: .55rem;
+}
+.game2-glossary-detail dd {
+  margin-top: .35rem;
+  color: #879da3;
+  font-size: .65rem;
+  line-height: 1.48;
+}
+.game2-briefing-shocks > header h3 {
+  max-width: 40rem;
+  margin-top: .4rem;
+  color: #edf5f5;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 620;
+  line-height: 1.15;
+}
+.game2-briefing-shocks > div { margin-top: 1rem; border-top: 1px solid rgb(255 255 255 / .1); }
+.game2-briefing-shocks article {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) minmax(10rem, .55fr);
+  gap: .8rem;
+  padding: .75rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / .08);
+}
+.game2-briefing-shocks article > span { color: #e8a35c; font-family: var(--font-mono); font-size: .57rem; }
+.game2-briefing-shocks article small { display: block; color: #67878c; font-family: var(--font-mono); font-size: .5rem; }
+.game2-briefing-shocks article strong { display: block; margin-top: .2rem; color: #e1ebeb; font-size: .72rem; }
+.game2-briefing-shocks article p { margin-top: .25rem; color: #80969c; font-size: .61rem; line-height: 1.42; }
+.game2-briefing-shocks aside { padding-left: .8rem; border-left: 1px solid rgb(73 209 200 / .18); }
+.game2-briefing-shocks aside strong { color: #49d1c8; }
+
+.game2-onboarding {
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  overflow: hidden;
+  color: #eff7f7;
+  background: #040c11;
+}
+.game2-tour-board {
+  position: absolute;
+  z-index: 1;
+  inset: 1rem;
+  overflow: hidden;
+  border: 1px solid rgb(126 172 178 / .23);
+  background: linear-gradient(135deg, rgb(60 199 189 / .035), transparent 38%), #07141a;
+}
+.game2-tour-board > .game-shell-grid { opacity: .75; }
+.game2-tour-boardbar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(12rem, .55fr) minmax(24rem, 1.45fr);
+  min-height: 4rem;
+  align-items: stretch;
+  border-bottom: 1px solid rgb(255 255 255 / .1);
+  background: rgb(5 15 20 / .92);
+}
+.game2-tour-boardbar > div { align-content: center; padding: .65rem 1rem; }
+.game2-tour-boardbar > div span,
+.game2-tour-boardbar > div strong { display: block; }
+.game2-tour-boardbar > div span { color: #49d1c8; font-family: var(--font-mono); font-size: .52rem; }
+.game2-tour-boardbar > div strong { margin-top: .18rem; font-size: .72rem; }
+.game2-tour-boardbar ol {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.game2-tour-boardbar li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  align-content: center;
+  gap: .4rem;
+  padding: .5rem;
+  color: #607980;
+}
+.game2-tour-boardbar li::after {
+  position: absolute;
+  right: .5rem;
+  bottom: .45rem;
+  left: .5rem;
+  height: 1px;
+  background: rgb(255 255 255 / .1);
+  content: '';
+}
+.game2-tour-boardbar li span {
+  display: grid;
+  width: 1.2rem;
+  height: 1.2rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: .5rem;
+}
+.game2-tour-boardbar li small { align-self: center; font-size: .55rem; }
+.game2-tour-boardbar li.is-active { color: #49d1c8; }
+.game2-tour-boardbar li.is-active::after { background: #49d1c8; box-shadow: 0 0 9px rgb(73 209 200 / .5); }
+.game2-tour-board-content {
+  position: relative;
+  z-index: 2;
+  height: calc(100% - 4rem);
+  padding: 2rem 27rem 2rem 2rem;
+}
+.game2-tour-board-content > * { height: 100%; }
+.game2-tour-mission {
+  display: grid;
+  max-width: 48rem;
+  align-content: center;
+  padding: 2rem;
+}
+.game2-tour-mission h2,
+.game2-tour-strategy h2,
+.game2-tour-shocks h2 {
+  max-width: 14ch;
+  margin-top: .7rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 4vw, 3.8rem);
+  font-weight: 630;
+  line-height: 1.02;
+}
+.game2-tour-mission > p:last-of-type {
+  max-width: 43rem;
+  margin-top: 1rem;
+  color: #93a9af;
+  font-size: .86rem;
+  line-height: 1.6;
+}
+.game2-tour-outcomes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 1.5rem;
+  border-top: 1px solid rgb(255 255 255 / .11);
+  border-bottom: 1px solid rgb(255 255 255 / .11);
+}
+.game2-tour-outcomes div { padding: .8rem; }
+.game2-tour-outcomes div + div { border-left: 1px solid rgb(255 255 255 / .1); }
+.game2-tour-outcomes span,
+.game2-tour-outcomes strong,
+.game2-tour-outcomes small { display: block; }
+.game2-tour-outcomes span { color: #6e858b; font-family: var(--font-mono); font-size: .55rem; }
+.game2-tour-outcomes strong { margin-top: .35rem; font-size: .82rem; }
+.game2-tour-outcomes small { margin-top: .25rem; color: #748b91; font-size: .58rem; }
+.game2-tour-outcomes .is-positive strong { color: #49d1c8; }
+.game2-tour-outcomes .is-warning strong { color: #e8a35c; }
+
+.game2-tour-allocation {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+}
+.game2-tour-allocation > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.game2-tour-allocation > header h2 { margin-top: .3rem; font-family: var(--font-display); font-size: 2rem; font-weight: 620; }
+.game2-tour-allocation > header > strong {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 1px solid #49d1c8;
+  color: #49d1c8;
+  font-family: var(--font-mono);
+  font-size: .65rem;
+}
+.game2-tour-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / .1);
+  border-bottom: 1px solid rgb(255 255 255 / .1);
+}
+.game2-tour-metrics div {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .4rem;
+  padding: .6rem;
+  color: #779097;
+}
+.game2-tour-metrics div + div { border-left: 1px solid rgb(255 255 255 / .08); }
+.game2-tour-metrics span { font-size: .62rem; }
+.game2-tour-metrics strong { color: #e5eeee; font-family: var(--font-mono); font-size: .68rem; }
+.game2-tour-allocation-layout {
+  display: grid;
+  grid-template-columns: minmax(11rem, .48fr) minmax(0, 1.52fr);
+  gap: 1.2rem;
+  min-height: 0;
+  margin-top: 1rem;
+}
+.game2-tour-allocation-layout aside {
+  align-self: stretch;
+  padding: .75rem 1rem 1rem 0;
+  border-right: 1px solid rgb(255 255 255 / .1);
+}
+.game2-tour-allocation-layout aside > div {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / .07);
+}
+.game2-tour-allocation-layout aside span { color: #758d94; font-size: .6rem; }
+.game2-tour-allocation-layout aside strong { font-family: var(--font-mono); font-size: .64rem; }
+.game2-tour-allocation-layout aside small {
+  display: block;
+  margin-top: .7rem;
+  color: #789097;
+  font-size: .58rem;
+  line-height: 1.45;
+}
+.game2-tour-allocation-layout section { min-width: 0; }
+.game2-tour-area-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: .7rem;
+}
+.game2-tour-area-heading span,
+.game2-tour-area-heading strong { display: block; }
+.game2-tour-area-heading span { color: #49d1c8; font-family: var(--font-mono); font-size: .52rem; }
+.game2-tour-area-heading strong { margin-top: .25rem; font-size: .9rem; }
+.game2-tour-area-heading button {
+  height: 2rem;
+  padding: 0 .6rem;
+  border: 1px solid rgb(73 209 200 / .25);
+  color: #86a4a8;
+  font-family: var(--font-mono);
+  font-size: .52rem;
+}
+.game2-tour-area-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin-top: .7rem;
+  background: rgb(255 255 255 / .08);
+}
+.game2-tour-area-grid > div {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: .45rem;
+  padding: .65rem;
+  background: #07141a;
+}
+.game2-tour-area-grid span { font-size: .62rem; }
+.game2-tour-area-grid strong { font-family: var(--font-mono); font-size: .58rem; }
+.game2-tour-area-grid i {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  height: .3rem;
+  background: rgb(255 255 255 / .07);
+}
+.game2-tour-area-grid b { display: block; height: 100%; }
+.game2-tour-lock {
+  display: flex;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  margin-top: .7rem;
+  color: #071417;
+  background: #49c9c0;
+  font-family: var(--font-mono);
+  font-size: .57rem;
+}
+
+.game2-tour-strategy,
+.game2-tour-shocks {
+  display: grid;
+  align-content: center;
+  max-width: 53rem;
+}
+.game2-tour-strategy h2,
+.game2-tour-shocks h2 { max-width: 18ch; font-size: clamp(1.8rem, 3vw, 3rem); }
+.game2-tour-locked {
+  display: grid;
+  grid-template-columns: auto repeat(4, 1fr);
+  gap: .6rem;
+  margin-top: 1rem;
+  padding: .55rem .65rem;
+  border-top: 1px solid rgb(73 209 200 / .2);
+  border-bottom: 1px solid rgb(73 209 200 / .12);
+  color: #789097;
+  font-size: .57rem;
+}
+.game2-tour-locked b { padding-left: .55rem; border-left: 1px solid rgb(255 255 255 / .08); color: #b3c5c8; font-family: var(--font-mono); font-weight: 500; }
+.game2-tour-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+  margin-top: .8rem;
+}
+.game2-tour-policy-grid article {
+  position: relative;
+  min-height: 10rem;
+  padding: .75rem;
+  border: 1px solid rgb(255 255 255 / .11);
+  color: #82989e;
+  background: rgb(255 255 255 / .018);
+}
+.game2-tour-policy-grid article.is-selected { border-color: #49d1c8; background: rgb(73 209 200 / .07); }
+.game2-tour-policy-grid article > span {
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border: 1px solid #e8a35c;
+  color: #e8a35c;
+  font-family: var(--font-mono);
+  font-size: .56rem;
+}
+.game2-tour-policy-grid small { display: block; margin-top: .65rem; color: #6f9ea5; font-family: var(--font-mono); font-size: .5rem; }
+.game2-tour-policy-grid strong { display: block; margin-top: .3rem; color: #e6efef; font-size: .72rem; line-height: 1.35; }
+.game2-tour-policy-grid p { margin-top: .35rem; font-size: .58rem; line-height: 1.42; }
+.game2-tour-policy-grid svg { position: absolute; top: .75rem; right: .75rem; color: #49d1c8; }
+.game2-tour-dependency {
+  display: flex;
+  gap: .45rem;
+  margin-top: .7rem;
+  color: #8c9fa3;
+  font-size: .6rem;
+  line-height: 1.45;
+}
+.game2-tour-dependency svg { flex: none; color: #e8a35c; }
+.game2-tour-shocks > div { margin-top: 1rem; border-top: 1px solid rgb(255 255 255 / .1); }
+.game2-tour-shocks article {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) minmax(9rem, .8fr);
+  gap: .65rem;
+  padding: .65rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / .08);
+}
+.game2-tour-shocks article > span { color: #e8a35c; font-family: var(--font-mono); font-size: .54rem; }
+.game2-tour-shocks article small { color: #658087; font-family: var(--font-mono); font-size: .48rem; }
+.game2-tour-shocks article strong { display: block; margin-top: .2rem; font-size: .72rem; }
+.game2-tour-shocks article p { margin-top: .25rem; color: #82989e; font-size: .57rem; }
+.game2-tour-shocks article p b { color: #49d1c8; }
+.game2-tour-shocks article em { align-self: center; color: #81969c; font-size: .55rem; font-style: normal; line-height: 1.4; }
+.game2-tour-shocks footer {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: .8rem;
+  border: 1px solid rgb(255 255 255 / .1);
+}
+.game2-tour-shocks footer div { padding: .55rem; }
+.game2-tour-shocks footer div + div { border-left: 1px solid rgb(255 255 255 / .08); }
+.game2-tour-shocks footer span,
+.game2-tour-shocks footer strong { display: block; }
+.game2-tour-shocks footer span { color: #718990; font-size: .52rem; }
+.game2-tour-shocks footer strong { margin-top: .2rem; font-family: var(--font-mono); font-size: .58rem; }
+
+.game2-tour-outline {
+  position: fixed;
+  z-index: 3;
+  border: 1px solid #49d1c8;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 9999px rgb(2 8 12 / .72),
+    0 0 0 4px rgb(73 209 200 / .1),
+    0 0 30px rgb(73 209 200 / .25);
+  pointer-events: none;
+  transform-origin: center;
+}
+.game2-tour-outline::before,
+.game2-tour-outline::after {
+  position: absolute;
+  width: .48rem;
+  height: .48rem;
+  border-color: #e8a35c;
+  content: '';
+}
+.game2-tour-outline::before { top: -.25rem; left: -.25rem; border-top: 2px solid; border-left: 2px solid; }
+.game2-tour-outline::after { right: -.25rem; bottom: -.25rem; border-right: 2px solid; border-bottom: 2px solid; }
+.game2-tour-coach {
+  position: fixed;
+  z-index: 6;
+  right: 2rem;
+  bottom: 2rem;
+  display: grid;
+  width: min(24rem, calc(100vw - 4rem));
+  max-height: calc(100dvh - 4rem);
+  border: 1px solid rgb(73 209 200 / .42);
+  border-radius: 4px;
+  outline: none;
+  background: rgb(5 16 21 / .98);
+  box-shadow: 0 28px 80px rgb(0 0 0 / .56), inset 0 1px rgb(255 255 255 / .05);
+}
+.game2-tour-coach > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .7rem .85rem;
+  border-bottom: 1px solid rgb(255 255 255 / .09);
+}
+.game2-tour-coach > header div { display: flex; align-items: center; gap: .5rem; }
+.game2-tour-coach > header span { color: #49d1c8; font-family: var(--font-mono); font-size: .54rem; }
+.game2-tour-coach > header strong { color: #e8a35c; font-family: var(--font-mono); font-size: .57rem; }
+.game2-tour-coach > header button {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  color: #81999f;
+}
+.game2-tour-progress { height: 2px; background: rgb(255 255 255 / .06); }
+.game2-tour-progress i { display: block; height: 100%; background: #49d1c8; transition: width 180ms ease; }
+.game2-tour-copy { min-height: 19.4rem; padding: 1rem 1rem .85rem; }
+.game2-tour-copy > p {
+  color: #e8a35c;
+  font-family: var(--font-mono);
+  font-size: .55rem;
+  text-transform: uppercase;
+}
+.game2-tour-copy h1 {
+  margin-top: .5rem;
+  color: #eff7f7;
+  font-family: var(--font-display);
+  font-size: 1.42rem;
+  font-weight: 620;
+  line-height: 1.15;
+}
+.game2-tour-copy > span {
+  display: block;
+  margin-top: .65rem;
+  color: #9cafb3;
+  font-size: .7rem;
+  line-height: 1.52;
+}
+.game2-tour-copy ul {
+  display: grid;
+  gap: .38rem;
+  margin: .75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.game2-tour-copy li {
+  position: relative;
+  padding-left: .85rem;
+  color: #82999f;
+  font-size: .63rem;
+  line-height: 1.45;
+}
+.game2-tour-copy li::before {
+  position: absolute;
+  top: .42rem;
+  left: 0;
+  width: .28rem;
+  height: .28rem;
+  background: #49d1c8;
+  content: '';
+}
+.game2-tour-copy code {
+  display: block;
+  margin-top: .65rem;
+  padding: .5rem .6rem;
+  border-left: 2px solid #e8a35c;
+  color: #b7cece;
+  background: rgb(232 163 92 / .045);
+  font-family: var(--font-mono);
+  font-size: .53rem;
+  line-height: 1.42;
+  white-space: normal;
+}
+.game2-tour-coach > footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: .35rem;
+  padding: .7rem;
+  border-top: 1px solid rgb(255 255 255 / .09);
+}
+.game2-tour-coach > footer button {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  padding: 0 .65rem;
+  font-family: var(--font-mono);
+  font-size: .54rem;
+}
+.game2-tour-back { color: #8ca1a6; border: 1px solid rgb(255 255 255 / .1); }
+.game2-tour-back:disabled { opacity: .3; }
+.game2-tour-skip { justify-self: start; color: #7d9298; }
+.game2-tour-next { color: #041114; background: #49c9c0; }
+
+@media (max-width: 1024px) {
+  .game2-tour-board-content { padding-right: 23rem; padding-left: 1.2rem; }
+  .game2-tour-coach { right: 1.5rem; bottom: 1.5rem; width: 20.5rem; }
+  .game2-tour-mission { padding: 1rem; }
+  .game2-tour-mission h2 { font-size: 2.5rem; }
+  .game2-tour-metrics div { grid-template-columns: 1fr; gap: .12rem; text-align: center; }
+  .game2-tour-metrics svg { display: none; }
+  .game2-tour-allocation-layout { grid-template-columns: 10rem 1fr; gap: .7rem; }
+  .game2-tour-area-grid > div { grid-template-columns: 1.2rem 1fr auto; padding: .5rem; }
+  .game2-tour-area-grid span { font-size: .55rem; }
+}
+
+@media (max-width: 820px) {
+  .game2-briefing-tabs { overflow-x: auto; grid-template-columns: repeat(5, minmax(7rem, 1fr)); }
+  .game2-briefing-body { padding: 1rem; }
+  .game2-briefing-glossary { grid-template-columns: minmax(9rem, .65fr) 1.35fr; gap: .8rem; min-height: 21rem; }
+  .game2-glossary-detail dl { grid-template-columns: 1fr; gap: .4rem; }
+  .game2-briefing-shocks article { grid-template-columns: 1.5rem 1fr; }
+  .game2-briefing-shocks aside { grid-column: 2; padding-left: 0; border-left: 0; }
+
+  .game2-tour-board { inset: .45rem; }
+  .game2-tour-boardbar { grid-template-columns: 1fr; min-height: 3rem; }
+  .game2-tour-boardbar > div { display: none; }
+  .game2-tour-boardbar li { padding: .3rem; }
+  .game2-tour-boardbar li::after { bottom: .25rem; }
+  .game2-tour-board-content {
+    height: calc(100% - 3rem);
+    padding: .8rem .8rem 20rem;
+  }
+  .game2-tour-coach {
+    right: .75rem;
+    bottom: .75rem;
+    left: .75rem;
+    width: auto;
+    max-height: 18.5rem;
+  }
+  .game2-tour-copy {
+    min-height: 0;
+    overflow: auto;
+    padding: .7rem .85rem;
+  }
+  .game2-tour-copy h1 { margin-top: .3rem; font-size: 1.08rem; }
+  .game2-tour-copy > span { margin-top: .35rem; font-size: .62rem; }
+  .game2-tour-copy ul { grid-template-columns: 1fr 1fr; gap: .25rem .6rem; margin-top: .45rem; }
+  .game2-tour-copy li { font-size: .55rem; }
+  .game2-tour-copy code { margin-top: .4rem; padding: .35rem .45rem; font-size: .48rem; }
+  .game2-tour-mission { padding: .8rem; }
+  .game2-tour-mission h2 { font-size: 1.8rem; }
+  .game2-tour-mission > p:last-of-type { margin-top: .5rem; font-size: .68rem; }
+  .game2-tour-outcomes { margin-top: .7rem; }
+  .game2-tour-outcomes div { padding: .45rem; }
+  .game2-tour-allocation > header h2 { font-size: 1.3rem; }
+  .game2-tour-allocation > header > strong { width: 1.8rem; height: 1.8rem; }
+  .game2-tour-metrics { margin-top: .45rem; }
+  .game2-tour-metrics div { padding: .3rem; }
+  .game2-tour-allocation-layout { grid-template-columns: 1fr; margin-top: .45rem; }
+  .game2-tour-allocation-layout aside {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .35rem;
+    padding: 0 0 .4rem;
+    border-right: 0;
+    border-bottom: 1px solid rgb(255 255 255 / .1);
+  }
+  .game2-tour-allocation-layout aside > p,
+  .game2-tour-allocation-layout aside > small { display: none; }
+  .game2-tour-allocation-layout aside > div { display: grid; padding: .25rem; border: 0; }
+  .game2-tour-area-grid { margin-top: .4rem; }
+  .game2-tour-lock { min-height: 1.9rem; margin-top: .4rem; }
+  .game2-tour-strategy,
+  .game2-tour-shocks { align-content: start; padding: .3rem; }
+  .game2-tour-strategy h2,
+  .game2-tour-shocks h2 { margin-top: .35rem; font-size: 1.45rem; }
+  .game2-tour-locked { margin-top: .45rem; }
+  .game2-tour-policy-grid { margin-top: .45rem; }
+  .game2-tour-policy-grid article { min-height: 7rem; padding: .45rem; }
+  .game2-tour-policy-grid small { margin-top: .35rem; }
+  .game2-tour-policy-grid p { display: none; }
+  .game2-tour-shocks > div { margin-top: .45rem; }
+  .game2-tour-shocks article { padding: .35rem 0; }
+  .game2-tour-shocks footer { margin-top: .4rem; }
+}
+
+@media (max-width: 640px) {
+  .game2-briefing-actions { align-items: end; flex-direction: column-reverse; }
+  .game2-briefing-tour { min-height: 2rem; padding: 0 .5rem; font-size: .5rem; }
+  .game2-briefing-tabs { grid-template-columns: repeat(5, minmax(5.5rem, 1fr)); }
+  .game-briefing-tab { min-height: 2.55rem; border-bottom: 0; font-size: .5rem; }
+  .game2-briefing-glossary { display: block; }
+  .game2-glossary-index {
+    overflow-x: auto;
+    grid-auto-columns: max-content;
+    grid-auto-flow: column;
+    border-right: 0;
+    border-bottom: 1px solid rgb(255 255 255 / .1);
+  }
+  .game2-glossary-index button {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .45rem .6rem;
+    border-right: 1px solid rgb(255 255 255 / .07);
+    white-space: nowrap;
+  }
+  .game2-glossary-detail { padding-top: .75rem; }
+  .game2-glossary-detail h3 { font-size: 1.35rem; }
+  .game2-glossary-detail dl { grid-template-columns: 1fr 1fr; }
+  .game2-briefing-shocks article p { display: none; }
+
+  .game2-glossary-popover.is-compact {
+    right: .6rem;
+    bottom: .6rem;
+    left: .6rem;
+    top: auto;
+    width: auto;
+    max-height: min(32rem, calc(100dvh - 1.2rem));
+    border-radius: 5px;
+  }
+  .game2-glossary-popover.is-compact::before { display: none; }
+  .game2-glossary-popover dl div { grid-template-columns: 5.4rem 1fr; }
+
+  .game2-tour-board-content { padding: .55rem .55rem 19.5rem; }
+  .game2-tour-boardbar li { grid-template-columns: 1rem 1fr; gap: .2rem; }
+  .game2-tour-boardbar li span { width: 1rem; height: 1rem; }
+  .game2-tour-boardbar li small { font-size: .45rem; }
+  .game2-tour-coach { max-height: 18.2rem; }
+  .game2-tour-coach > header { padding: .45rem .6rem; }
+  .game2-tour-coach > footer { grid-template-columns: auto 1fr auto; padding: .45rem; }
+  .game2-tour-coach > footer button { min-height: 2rem; padding: 0 .5rem; font-size: .49rem; }
+  .game2-tour-skip { display: inline-flex !important; justify-self: center; }
+  .game2-tour-next { justify-self: end; }
+  .game2-tour-copy ul { display: grid; grid-template-columns: 1fr; }
+  .game2-tour-copy li:nth-child(n + 3) { display: none; }
+  .game2-tour-mission h2 { font-size: 1.45rem; }
+  .game2-tour-mission > p:last-of-type { display: none; }
+  .game2-tour-outcomes { grid-template-columns: 1fr; }
+  .game2-tour-outcomes div {
+    display: grid;
+    grid-template-columns: 1.2rem 1fr;
+    gap: .2rem .4rem;
+    padding: .3rem;
+  }
+  .game2-tour-outcomes div + div { border-top: 1px solid rgb(255 255 255 / .08); border-left: 0; }
+  .game2-tour-outcomes small { grid-column: 2; }
+  .game2-tour-metrics span { font-size: .47rem; }
+  .game2-tour-metrics strong { font-size: .52rem; }
+  .game2-tour-allocation-layout aside { display: none; }
+  .game2-tour-area-grid > div { grid-template-columns: 1rem 1fr auto; padding: .35rem; }
+  .game2-tour-area-grid span { font-size: .48rem; }
+  .game2-tour-locked { grid-template-columns: repeat(4, 1fr); }
+  .game2-tour-locked > span { display: none; }
+  .game2-tour-policy-grid { grid-template-columns: 1fr; }
+  .game2-tour-policy-grid article { display: grid; grid-template-columns: 1.4rem 1fr; min-height: 0; }
+  .game2-tour-policy-grid article > span { grid-row: 1 / 3; width: 1.35rem; height: 1.35rem; }
+  .game2-tour-policy-grid small,
+  .game2-tour-policy-grid strong { margin-top: 0; }
+  .game2-tour-dependency { display: none; }
+  .game2-tour-shocks article { grid-template-columns: 1.3rem 1fr; }
+  .game2-tour-shocks article em { display: none; }
+  .game2-tour-shocks footer { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game2-tour-progress i,
+  .game2-glossary-term { transition: none !important; }
+}

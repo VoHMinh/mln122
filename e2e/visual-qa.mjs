@@ -34,6 +34,23 @@ for (const viewport of viewports) {
 
   await page.getByLabel('Tên hiển thị').fill('Visual QA');
   await page.getByRole('button', { name: 'Tạo phòng và tham gia' }).click();
+  await page
+    .getByRole('dialog', { name: /Tăng trưởng chỉ có ý nghĩa khi đi cùng nội lực/ })
+    .waitFor();
+  await page.waitForFunction(() => {
+    const board = document.querySelector('.game2-tour-board-content > *');
+    const coach = document.querySelector('.game2-tour-coach');
+    if (!(board instanceof HTMLElement) || !(coach instanceof HTMLElement)) return false;
+    return (
+      Number.parseFloat(getComputedStyle(board).opacity) > 0.99 &&
+      Number.parseFloat(getComputedStyle(coach).opacity) > 0.99 &&
+      coach.getBoundingClientRect().width > 280
+    );
+  });
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: `${output}/${viewport.name}-onboarding.png` });
+  await page.getByRole('button', { name: 'Bỏ qua hướng dẫn' }).click();
+  await page.getByText('Tập hợp đội ngũ trước nhiệm kỳ.').waitFor();
   await page.getByRole('button', { name: 'Bắt đầu phòng' }).click();
   await page.getByRole('button', { name: 'Bắt đầu giai đoạn 1' }).click();
   await page.getByRole('heading', { name: 'Phân bổ nguồn lực' }).waitFor();
@@ -48,12 +65,13 @@ for (const viewport of viewports) {
   await page.waitForTimeout(1_200);
   await page.screenshot({ path: `${output}/${viewport.name}-report.png` });
 
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - window.innerWidth,
-  );
-  if (overflow > 1 || runtimeErrors.length > 0) {
+  const overflow = await page.evaluate(() => ({
+    horizontal: document.documentElement.scrollWidth - window.innerWidth,
+    vertical: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  if (overflow.horizontal > 1 || overflow.vertical > 1 || runtimeErrors.length > 0) {
     throw new Error(
-      `${viewport.name}: overflow=${overflow}; errors=${runtimeErrors.join(' | ')}`,
+      `${viewport.name}: overflow=${JSON.stringify(overflow)}; errors=${runtimeErrors.join(' | ')}`,
     );
   }
   await context.close();

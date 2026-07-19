@@ -19,6 +19,7 @@ import {
 import { useGameStore } from '@/store/game-store';
 import type { RoundAllocation } from '@/types';
 import { getPolicyStage, INVESTMENT_AREAS } from '@/lib/game-scenarios';
+import GlossaryTerm from './GlossaryTerm';
 
 const AREA_ICONS = {
   education: GraduationCap,
@@ -76,11 +77,11 @@ export default function RoundPlay() {
   };
 
   const metrics = [
-    { label: 'Năng suất', value: session.metrics.productivity, icon: Gauge },
-    { label: 'Tự chủ', value: session.metrics.autonomy, icon: BrainCircuit },
-    { label: 'Hấp thụ', value: session.metrics.absorption, icon: GraduationCap },
-    { label: 'Chống chịu', value: session.metrics.resilience, icon: ShieldCheck },
-  ];
+    { label: 'Năng suất', value: session.metrics.productivity, icon: Gauge, term: 'productivity' },
+    { label: 'Tự chủ', value: session.metrics.autonomy, icon: BrainCircuit, term: 'autonomy' },
+    { label: 'Hấp thụ', value: session.metrics.absorption, icon: GraduationCap, term: 'absorption' },
+    { label: 'Chống chịu', value: session.metrics.resilience, icon: ShieldCheck, term: 'resilience' },
+  ] as const;
 
   return (
     <section className="game2-play">
@@ -99,16 +100,16 @@ export default function RoundPlay() {
       </header>
 
       <div className="game2-run-metrics">
-        {metrics.map(({ label, value, icon: Icon }) => (
+        {metrics.map(({ label, value, icon: Icon, term }) => (
           <div key={label}>
             <Icon size={15} />
-            <span>{label}</span>
+            <GlossaryTerm term={term}>{label}</GlossaryTerm>
             <strong>{value.toFixed(1)}</strong>
           </div>
         ))}
         <div className={session.metrics.debtOutstanding > 0 ? 'is-warning' : ''}>
           <Coins size={15} />
-          <span>Nợ tồn</span>
+          <GlossaryTerm term="debt">Nợ tồn</GlossaryTerm>
           <strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong>
         </div>
       </div>
@@ -117,7 +118,7 @@ export default function RoundPlay() {
         <aside className="game2-brief-column">
           <p className="game-overline"><Landmark size={15} /> Bản tin điều hành</p>
           <div className="game2-budget-readout">
-            <div><span>Ngân sách cơ sở</span><strong>{session.budgetForRound} RP</strong></div>
+            <div><GlossaryTerm term="rp">Ngân sách cơ sở</GlossaryTerm><strong>{session.budgetForRound} RP</strong></div>
             <div><span>Vay kỳ này</span><strong>{borrowedAmount ? `+${borrowedAmount}` : '0'} RP</strong></div>
             <div><span>Đang phân bổ</span><strong>{total}/{available} RP</strong></div>
           </div>
@@ -162,8 +163,10 @@ export default function RoundPlay() {
           <div className="game2-path-note">
             <span>Phụ thuộc đường dẫn</span>
             <p>
-              Giáo dục kỳ này phát huy ở kỳ sau. FDI vượt 50% cùng R&D dưới 20
-              trong hai kỳ liên tiếp sẽ kích hoạt hệ số phạt.
+              <GlossaryTerm term="educationDelay">Giáo dục kỳ này</GlossaryTerm> phát huy
+              ở kỳ sau. <GlossaryTerm term="fdi">FDI</GlossaryTerm> vượt 50% cùng{' '}
+              <GlossaryTerm term="innovation">R&amp;D</GlossaryTerm> dưới 20 trong hai kỳ
+              liên tiếp sẽ kích hoạt <GlossaryTerm term="dependency">hệ số phạt</GlossaryTerm>.
             </p>
           </div>
         </aside>
@@ -228,7 +231,18 @@ export default function RoundPlay() {
                     <span className="game2-area-icon" style={{ color: area.color }}>
                       <Icon size={17} />
                     </span>
-                    <div><h3>{area.label}</h3><p>{area.description}</p></div>
+                    <div>
+                      <h3>
+                        {key === 'innovation' ? (
+                          <GlossaryTerm term="innovation">{area.label}</GlossaryTerm>
+                        ) : key === 'fdi' ? (
+                          <GlossaryTerm term="fdi">{area.label}</GlossaryTerm>
+                        ) : key === 'education' ? (
+                          <GlossaryTerm term="educationDelay">{area.label}</GlossaryTerm>
+                        ) : area.label}
+                      </h3>
+                      <p>{area.description}</p>
+                    </div>
                     <strong style={{ color: area.color }}>{value}<small> RP</small></strong>
                   </div>
                   <input

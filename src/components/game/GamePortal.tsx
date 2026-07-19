@@ -12,23 +12,48 @@ import {
 import { useRoomStore } from '@/store/room-store';
 import useHydrated from '@/hooks/useHydrated';
 
-type Props = {
-  onOpenBriefing: () => void;
+export type PortalAccessRequest = {
+  mode: 'CREATE' | 'JOIN';
+  nickname: string;
+  className: string;
+  code: string;
 };
 
-export default function GamePortal({ onOpenBriefing }: Props) {
+type Props = {
+  onOpenBriefing: () => void;
+  onBeginOnboarding: (request: PortalAccessRequest) => void;
+};
+
+export default function GamePortal({ onOpenBriefing, onBeginOnboarding }: Props) {
   const hydrated = useHydrated();
   const [mode, setMode] = useState<'CREATE' | 'JOIN'>('CREATE');
   const [nickname, setNickname] = useState('');
   const [className, setClassName] = useState('');
   const [code, setCode] = useState('');
-  const { createRoom, joinRoom, isLoading, error, clearError } = useRoomStore();
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const { isLoading, error, clearError } = useRoomStore();
 
-  const submit = async (event: FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
     clearError();
-    if (mode === 'CREATE') await createRoom(nickname, className);
-    else await joinRoom(code, nickname, className);
+    const cleanNickname = nickname.trim();
+    const cleanClassName = className.trim();
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanNickname) {
+      setValidationError('Hãy nhập tên hiển thị trước khi tiếp tục.');
+      return;
+    }
+    if (mode === 'JOIN' && cleanCode.length !== 6) {
+      setValidationError('Mã phòng phải gồm đúng 6 ký tự.');
+      return;
+    }
+    setValidationError(null);
+    onBeginOnboarding({
+      mode,
+      nickname: cleanNickname,
+      className: cleanClassName,
+      code: cleanCode,
+    });
   };
 
   return (
@@ -114,7 +139,9 @@ export default function GamePortal({ onOpenBriefing }: Props) {
           />
         </label>
 
-        {error && <p className="game2-form-error">{error}</p>}
+        {(validationError || error) && (
+          <p className="game2-form-error">{validationError ?? error}</p>
+        )}
 
         <button
           type="submit"

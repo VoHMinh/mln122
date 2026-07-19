@@ -10,6 +10,7 @@ import {
 import { useGameStore } from '@/store/game-store';
 import { useRoomStore } from '@/store/room-store';
 import ResultChart from './ResultChart';
+import GlossaryTerm from './GlossaryTerm';
 
 const OUTCOMES = {
   LEAPFROG: {
@@ -47,9 +48,9 @@ export default function GameResult() {
       </header>
 
       <div className="game2-result-metrics">
-        <div><span>Năng suất cuối</span><strong>{finalResult.finalScore.toFixed(1)}</strong></div>
-        <div><span>Tự chủ</span><strong>{finalResult.autonomyIndex.toFixed(1)}</strong></div>
-        <div><span>Nợ công nghệ</span><strong>{finalResult.debtOutstanding.toFixed(0)} RP</strong></div>
+        <div><GlossaryTerm term="productivity">Năng suất cuối</GlossaryTerm><strong>{finalResult.finalScore.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="autonomy">Tự chủ</GlossaryTerm><strong>{finalResult.autonomyIndex.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="debt">Nợ công nghệ</GlossaryTerm><strong>{finalResult.debtOutstanding.toFixed(0)} RP</strong></div>
         <div><span>Xếp hạng hiện tại</span><strong>{finalResult.rank ? `#${finalResult.rank}` : 'Đang chờ'}</strong></div>
       </div>
 

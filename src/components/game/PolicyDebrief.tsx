@@ -3,6 +3,7 @@
 import { ArrowRight, CircleAlert, GitBranch, Network, Sparkles } from 'lucide-react';
 import { useGameStore } from '@/store/game-store';
 import { getPolicyStage } from '@/lib/game-scenarios';
+import GlossaryTerm from './GlossaryTerm';
 
 export default function PolicyDebrief() {
   const { session, completeGame, isLoading } = useGameStore();
@@ -31,10 +32,10 @@ export default function PolicyDebrief() {
       </header>
 
       <div className="game2-debrief-metrics">
-        <div><span>Năng suất</span><strong>{session.metrics.productivity.toFixed(1)}</strong></div>
-        <div><span>Tự chủ</span><strong>{session.metrics.autonomy.toFixed(1)}</strong></div>
-        <div><span>Hấp thụ</span><strong>{session.metrics.absorption.toFixed(1)}</strong></div>
-        <div><span>Nợ còn lại</span><strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong></div>
+        <div><GlossaryTerm term="productivity">Năng suất</GlossaryTerm><strong>{session.metrics.productivity.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="autonomy">Tự chủ</GlossaryTerm><strong>{session.metrics.autonomy.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="absorption">Hấp thụ</GlossaryTerm><strong>{session.metrics.absorption.toFixed(1)}</strong></div>
+        <div><GlossaryTerm term="debt">Nợ còn lại</GlossaryTerm><strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong></div>
       </div>
 
       <ol className="game2-policy-timeline">

@@ -12,6 +12,7 @@ import {
 import type { PolicyChoice } from '@/types';
 import { useGameStore } from '@/store/game-store';
 import { getPolicyStage } from '@/lib/game-scenarios';
+import GlossaryTerm from './GlossaryTerm';
 
 function forecast(option: ReturnType<typeof getPolicyStage>['options'][number]) {
   const signals: string[] = [];
@@ -56,9 +57,9 @@ export default function EventCard() {
       <div className="game2-step-bridge" aria-label="Nguồn lực đã khóa">
         <span>Nguồn lực đã khóa</span>
         <div><small>Nhân lực</small><strong>{allocations.education}</strong></div>
-        <div><small>R&amp;D</small><strong>{allocations.innovation}</strong></div>
+        <div><small><GlossaryTerm term="innovation">R&amp;D</GlossaryTerm></small><strong>{allocations.innovation}</strong></div>
         <div><small>Hạ tầng</small><strong>{allocations.infrastructure}</strong></div>
-        <div><small>FDI</small><strong>{allocations.fdi}</strong></div>
+        <div><small><GlossaryTerm term="fdi">FDI</GlossaryTerm></small><strong>{allocations.fdi}</strong></div>
         <p>Cùng một chiến lược có thể cho kết quả khác khi nền năng lực khác nhau.</p>
       </div>
 
