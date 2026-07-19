@@ -1,0 +1,81 @@
+.option-wheel {
+  --ow-text-color: #718994;
+  --ow-active-color: #f2f7f7;
+  --ow-font-size: 1.25rem;
+  --ow-inset: 42px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 17rem;
+  overflow: hidden;
+  cursor: grab;
+  outline: none;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.option-wheel::before {
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  left: calc(var(--ow-inset) - 17px);
+  width: 1px;
+  content: '';
+  background: linear-gradient(transparent, rgb(60 199 189 / 0.65), transparent);
+}
+
+.option-wheel::after {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--ow-inset) - 21px);
+  width: 9px;
+  height: 9px;
+  content: '';
+  border: 2px solid #3cc7bd;
+  border-radius: 999px;
+  background: #081217;
+  box-shadow: 0 0 0 5px rgb(60 199 189 / 0.1), 0 0 18px rgb(60 199 189 / 0.3);
+  transform: translateY(-50%);
+}
+
+.option-wheel--right::before { right: calc(var(--ow-inset) - 17px); left: auto; }
+.option-wheel--right::after { right: calc(var(--ow-inset) - 21px); left: auto; }
+
+.option-wheel__item {
+  position: absolute;
+  top: 50%;
+  left: var(--ow-inset);
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  max-width: calc(100% - var(--ow-inset) - 1.25rem);
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--ow-active-color) calc(var(--ow-progress, 0) * 100%), var(--ow-text-color));
+  cursor: pointer;
+  font-family: var(--font-display), ui-sans-serif, sans-serif;
+  font-size: var(--ow-font-size);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.08;
+  text-align: left;
+  transform-origin: left center;
+  transition: color 180ms ease, font-weight 180ms ease;
+  white-space: nowrap;
+  will-change: transform, opacity, filter;
+}
+
+.option-wheel__item > span {
+  color: #e9a35a;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.58em;
+  letter-spacing: 0.1em;
+}
+
+.option-wheel__item--selected { font-weight: 650; }
+.option-wheel--right .option-wheel__item { right: var(--ow-inset); left: auto; justify-content: flex-end; text-align: right; transform-origin: right center; }
+
+@media (max-width: 767px) {
+  .option-wheel { min-height: 12.5rem; touch-action: pan-y; }
+  .option-wheel__item { max-width: calc(100% - var(--ow-inset) - 1rem); font-size: min(var(--ow-font-size), 1.05rem); white-space: normal; }
+}
