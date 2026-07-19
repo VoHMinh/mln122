@@ -22,7 +22,12 @@ const REST_OFFSETS = [
   [-18, 4],
 ] as const;
 
-type Point = { x: number; y: number };
+function validTarget(target: HTMLElement | null) {
+  if (!target || !target.isConnected) return false;
+  if (target.matches(':disabled, [aria-disabled="true"]')) return false;
+  const rect = target.getBoundingClientRect();
+  return rect.width > 1 && rect.height > 1;
+}
 
 export default function TargetCursor({
   targetSelector = '.cursor-target',
@@ -35,40 +40,61 @@ export default function TargetCursor({
   followOnly = false,
 }: TargetCursorProps) {
   const cursorRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const cursor = cursorRef.current;
-    if (!cursor || window.matchMedia('(pointer: coarse)').matches) return;
+    const frame = frameRef.current;
+    const mediaCoarse = window.matchMedia('(pointer: coarse)');
+    const mediaReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!cursor || !frame || mediaCoarse.matches || mediaReduced.matches) return;
 
     const dot = cursor.querySelector<HTMLElement>('.target-cursor-dot');
-    const corners = Array.from(cursor.querySelectorAll<HTMLElement>('.target-cursor-corner'));
-    if (!dot || corners.length !== 4) return;
+    const freeCorners = Array.from(
+      cursor.querySelectorAll<HTMLElement>('.target-cursor-free-corner'),
+    );
+    const frameCorners = Array.from(
+      frame.querySelectorAll<HTMLElement>('.target-cursor-frame-corner'),
+    );
+    if (!dot || freeCorners.length !== 4 || frameCorners.length !== 4) return;
 
-    const previousCursor = document.body.style.cursor;
-    const cursorRoot = document.documentElement;
-    const pointer: Point = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const root = document.documentElement;
+    const previousBodyCursor = document.body.style.cursor;
+    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const followDuration = parallaxOn ? 0.12 : 0;
+    const lockDuration = Math.min(Math.max(hoverDuration, 0.08), 0.3);
     let activeTarget: HTMLElement | null = null;
-    let hasPointer = false;
-    let targetCorners: Point[] | null = null;
+    let observer: ResizeObserver | null = null;
+    let raf = 0;
 
-    const movementDuration = parallaxOn ? 0.16 : 0;
-    const lockDuration = Math.min(Math.max(hoverDuration, 0.08), 0.35);
-    const xTo = gsap.quickTo(cursor, 'x', { duration: movementDuration, ease: 'power3.out' });
-    const yTo = gsap.quickTo(cursor, 'y', { duration: movementDuration, ease: 'power3.out' });
+    const xTo = gsap.quickTo(cursor, 'x', {
+      duration: followDuration,
+      ease: 'power3.out',
+    });
+    const yTo = gsap.quickTo(cursor, 'y', {
+      duration: followDuration,
+      ease: 'power3.out',
+    });
     const spin = gsap.timeline({ repeat: -1, paused: true }).to(cursor, {
       rotation: 360,
       duration: Math.max(spinDuration, 0.6),
       ease: 'none',
     });
 
-    if (hideDefaultCursor) {
-      document.body.style.cursor = 'none';
-      cursorRoot.classList.add('target-cursor-native-hidden');
-    }
-
-    gsap.set(cursor, { x: pointer.x, y: pointer.y, rotation: 0, transformOrigin: '0 0' });
-    gsap.set(dot, { xPercent: -50, yPercent: -50, autoAlpha: 1, scale: 1, backgroundColor: cursorColor });
-    corners.forEach((corner, index) => {
+    gsap.set(cursor, {
+      x: pointer.x,
+      y: pointer.y,
+      rotation: 0,
+      transformOrigin: '0 0',
+    });
+    gsap.set(dot, {
+      xPercent: -50,
+      yPercent: -50,
+      autoAlpha: 1,
+      scale: 1,
+      backgroundColor: cursorColor,
+    });
+    freeCorners.forEach((corner, index) => {
       gsap.set(corner, {
         x: REST_OFFSETS[index][0],
         y: REST_OFFSETS[index][1],
@@ -76,146 +102,192 @@ export default function TargetCursor({
         borderColor: cursorColor,
       });
     });
+    gsap.set(frame, { autoAlpha: 0 });
+    gsap.set(frameCorners, {
+      borderColor: cursorColorOnTarget ?? cursorColor,
+    });
     spin.play();
 
-    const getTarget = (element: EventTarget | null) => {
-      if (followOnly || !(element instanceof Element)) return null;
-      const target = element.closest<HTMLElement>(targetSelector);
-      return target && !target.matches(':disabled, [aria-disabled="true"]') ? target : null;
-    };
+    if (hideDefaultCursor) {
+      document.body.style.cursor = 'none';
+      root.classList.add('target-cursor-native-hidden');
+    }
 
-    const measureTarget = (target: HTMLElement) => {
-      const rect = target.getBoundingClientRect();
+    const measureFrame = () => {
+      if (!validTarget(activeTarget)) {
+        deactivate();
+        return;
+      }
+      const rect = activeTarget!.getBoundingClientRect();
       const gap = 5;
-      const cornerSize = 14;
-      targetCorners = [
-        { x: rect.left - gap, y: rect.top - gap },
-        { x: rect.right - cornerSize + gap, y: rect.top - gap },
-        { x: rect.right - cornerSize + gap, y: rect.bottom - cornerSize + gap },
-        { x: rect.left - gap, y: rect.bottom - cornerSize + gap },
-      ];
-    };
-
-    // The wrapper follows the pointer while each bracket compensates for that
-    // movement. This keeps the target frame anchored without spawning tweens on every pointer event.
-    const syncTargetFrame = () => {
-      if (!activeTarget || !targetCorners) return;
-      const cursorX = Number(gsap.getProperty(cursor, 'x')) || pointer.x;
-      const cursorY = Number(gsap.getProperty(cursor, 'y')) || pointer.y;
-      corners.forEach((corner, index) => {
-        gsap.set(corner, {
-          x: targetCorners![index].x - cursorX,
-          y: targetCorners![index].y - cursorY,
-        });
+      gsap.set(frame, {
+        x: rect.left - gap,
+        y: rect.top - gap,
+        width: rect.width + gap * 2,
+        height: rect.height + gap * 2,
       });
     };
 
-    const restoreFreeCursor = () => {
-      gsap.killTweensOf([dot, ...corners]);
+    const disconnectObserver = () => {
+      observer?.disconnect();
+      observer = null;
+    };
+
+    const deactivate = () => {
+      if (!activeTarget && frame.dataset.active !== 'true') return;
+      activeTarget = null;
+      disconnectObserver();
+      delete frame.dataset.active;
+      gsap.killTweensOf([frame, dot, ...freeCorners]);
+      gsap.to(frame, {
+        autoAlpha: 0,
+        scale: 0.985,
+        duration: lockDuration * 0.75,
+        ease: 'power2.out',
+        overwrite: true,
+      });
+      gsap.to(dot, {
+        autoAlpha: 1,
+        scale: 1,
+        duration: lockDuration,
+        ease: 'power2.out',
+        overwrite: true,
+      });
+      gsap.to(freeCorners, {
+        autoAlpha: 1,
+        duration: lockDuration,
+        ease: 'power2.out',
+        overwrite: true,
+      });
       gsap.set(cursor, { rotation: 0 });
-      gsap.set(dot, { autoAlpha: 1, scale: 1, backgroundColor: cursorColor });
-      corners.forEach((corner, index) => {
-        gsap.set(corner, {
-          x: REST_OFFSETS[index][0],
-          y: REST_OFFSETS[index][1],
-          autoAlpha: 1,
-          borderColor: cursorColor,
-        });
-      });
       spin.restart(true);
     };
 
-    const activateTarget = (target: HTMLElement) => {
-      if (activeTarget === target) return;
-
-      const wasTargeting = activeTarget !== null;
+    const activate = (target: HTMLElement) => {
+      if (activeTarget === target && validTarget(target)) {
+        measureFrame();
+        return;
+      }
+      deactivate();
       activeTarget = target;
-      measureTarget(target);
       spin.pause();
-      gsap.killTweensOf([dot, ...corners]);
       gsap.set(cursor, { rotation: 0 });
-      gsap.to(dot, { autoAlpha: 0, scale: 0.65, duration: lockDuration, ease: 'power2.out', overwrite: 'auto' });
-      gsap.to(corners, {
-        autoAlpha: 1,
-        borderColor: cursorColorOnTarget ?? cursorColor,
+      measureFrame();
+      if (!activeTarget) return;
+      frame.dataset.active = 'true';
+      gsap.killTweensOf([frame, dot, ...freeCorners]);
+      gsap.fromTo(
+        frame,
+        { autoAlpha: 0, scale: 0.985 },
+        {
+          autoAlpha: 1,
+          scale: 1,
+          duration: lockDuration,
+          ease: 'power2.out',
+          overwrite: true,
+        },
+      );
+      gsap.to(dot, {
+        autoAlpha: 0,
+        scale: 0.65,
         duration: lockDuration,
-        ease: 'power2.out',
-        overwrite: 'auto',
+        overwrite: true,
       });
-      if (!wasTargeting) gsap.ticker.add(syncTargetFrame);
-      syncTargetFrame();
-      cursor.dataset.active = 'true';
+      gsap.to(freeCorners, {
+        autoAlpha: 0,
+        duration: lockDuration * 0.7,
+        overwrite: true,
+      });
+      observer = new ResizeObserver(measureFrame);
+      observer.observe(target);
     };
 
-    const deactivateTarget = () => {
-      if (!activeTarget) return;
-      activeTarget = null;
-      targetCorners = null;
-      delete cursor.dataset.active;
-      gsap.ticker.remove(syncTargetFrame);
-      restoreFreeCursor();
+    const targetAtPointer = () => {
+      if (followOnly) return null;
+      const element = document.elementFromPoint(pointer.x, pointer.y);
+      const target =
+        element instanceof Element
+          ? element.closest<HTMLElement>(targetSelector)
+          : null;
+      return validTarget(target) ? target : null;
+    };
+
+    const refresh = () => {
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(() => {
+        const target = targetAtPointer();
+        if (target) activate(target);
+        else deactivate();
+      });
     };
 
     const move = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
-      hasPointer = true;
       cursor.dataset.ready = 'true';
       xTo(pointer.x);
       yTo(pointer.y);
-
-      const nextTarget = getTarget(event.target);
-      if (nextTarget) activateTarget(nextTarget);
-      else deactivateTarget();
+      refresh();
     };
 
-    const refreshTarget = () => {
-      if (!hasPointer || followOnly) return;
-      const nextTarget = getTarget(document.elementFromPoint(pointer.x, pointer.y));
-      if (nextTarget) {
-        activateTarget(nextTarget);
-        measureTarget(nextTarget);
-        syncTargetFrame();
-      } else {
-        deactivateTarget();
-      }
-    };
-
-    const hideCursor = () => {
-      deactivateTarget();
+    const hide = () => {
+      deactivate();
       delete cursor.dataset.ready;
     };
 
+    const onVisibility = () => {
+      if (document.hidden) hide();
+      else refresh();
+    };
+
     window.addEventListener('pointermove', move, { passive: true });
-    window.addEventListener('scroll', refreshTarget, { passive: true });
-    window.addEventListener('resize', refreshTarget, { passive: true });
-    document.addEventListener('pointerleave', hideCursor, { passive: true });
+    window.addEventListener('scroll', refresh, { passive: true });
+    window.addEventListener('resize', refresh, { passive: true });
+    window.addEventListener('blur', hide);
+    document.addEventListener('pointerleave', hide);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
+      window.cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', move);
-      window.removeEventListener('scroll', refreshTarget);
-      window.removeEventListener('resize', refreshTarget);
-      document.removeEventListener('pointerleave', hideCursor);
-      gsap.ticker.remove(syncTargetFrame);
+      window.removeEventListener('scroll', refresh);
+      window.removeEventListener('resize', refresh);
+      window.removeEventListener('blur', hide);
+      document.removeEventListener('pointerleave', hide);
+      document.removeEventListener('visibilitychange', onVisibility);
+      disconnectObserver();
       spin.kill();
-      gsap.killTweensOf([cursor, dot, ...corners]);
-      document.body.style.cursor = previousCursor;
-      cursorRoot.classList.remove('target-cursor-native-hidden');
+      gsap.killTweensOf([cursor, frame, dot, ...freeCorners, ...frameCorners]);
+      document.body.style.cursor = previousBodyCursor;
+      root.classList.remove('target-cursor-native-hidden');
     };
-  }, [cursorColor, cursorColorOnTarget, followOnly, hideDefaultCursor, hoverDuration, parallaxOn, spinDuration, targetSelector]);
+  }, [
+    cursorColor,
+    cursorColorOnTarget,
+    followOnly,
+    hideDefaultCursor,
+    hoverDuration,
+    parallaxOn,
+    spinDuration,
+    targetSelector,
+  ]);
 
+  const style = { '--target-cursor-color': cursorColor } as React.CSSProperties;
   return (
-    <div
-      ref={cursorRef}
-      className="target-cursor-wrapper"
-      style={{ '--target-cursor-color': cursorColor } as React.CSSProperties}
-      aria-hidden="true"
-    >
-      <span className="target-cursor-dot" />
-      <span className="target-cursor-corner target-cursor-corner--tl" />
-      <span className="target-cursor-corner target-cursor-corner--tr" />
-      <span className="target-cursor-corner target-cursor-corner--br" />
-      <span className="target-cursor-corner target-cursor-corner--bl" />
-    </div>
+    <>
+      <div ref={cursorRef} className="target-cursor-wrapper" style={style} aria-hidden="true">
+        <span className="target-cursor-dot" />
+        <span className="target-cursor-corner target-cursor-free-corner target-cursor-corner--tl" />
+        <span className="target-cursor-corner target-cursor-free-corner target-cursor-corner--tr" />
+        <span className="target-cursor-corner target-cursor-free-corner target-cursor-corner--br" />
+        <span className="target-cursor-corner target-cursor-free-corner target-cursor-corner--bl" />
+      </div>
+      <div ref={frameRef} className="target-cursor-frame" style={style} aria-hidden="true">
+        <span className="target-cursor-corner target-cursor-frame-corner target-cursor-corner--tl" />
+        <span className="target-cursor-corner target-cursor-frame-corner target-cursor-corner--tr" />
+        <span className="target-cursor-corner target-cursor-frame-corner target-cursor-corner--br" />
+        <span className="target-cursor-corner target-cursor-frame-corner target-cursor-corner--bl" />
+      </div>
+    </>
   );
 }

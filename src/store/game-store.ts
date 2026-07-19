@@ -1,18 +1,52 @@
 'use client';
 
 import { create } from 'zustand';
-import type {
-  CompleteResponse,
-  GameActions,
-  GameState,
-  PolicyChoice,
-  RoundAllocation,
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { getGameGateway } from '@/lib/game-gateway';
+import { useRoomStore } from '@/store/room-store';
+import {
+  GamePhase,
+  type CompleteResponse,
+  type PolicyChoice,
+  type RoundAllocation,
+  type RoundResolution,
+  type SessionSnapshot,
 } from '@/types';
-import { GamePhase } from '@/types';
-import * as api from '@/lib/api';
 
-const BASE_BUDGET = 100;
-const MAX_BORROW = 50;
+type GameState = {
+  phase: GamePhase;
+  session: SessionSnapshot | null;
+  allocations: RoundAllocation;
+  borrowedAmount: number;
+  pendingResolution: RoundResolution | null;
+  pendingSubmissionId: string | null;
+  finalResult: CompleteResponse | null;
+  seenShock: boolean;
+  isLoading: boolean;
+  error: string | null;
+};
+
+type GameActions = {
+  loadSession: (session: SessionSnapshot, roomInProgress?: boolean) => void;
+  startTerm: () => void;
+  dismissShock: () => void;
+  updateAllocation: (field: keyof RoundAllocation, value: number) => void;
+  balanceAllocation: () => void;
+  clearAllocation: () => void;
+  setBorrowedAmount: (value: number) => void;
+  showEvent: () => void;
+  returnToAllocation: () => void;
+  submitRound: (choice: PolicyChoice) => Promise<void>;
+  continueFromReport: () => void;
+  showDebrief: () => void;
+  completeGame: () => Promise<void>;
+  showRoomResult: () => void;
+  showPersonalResult: () => void;
+  handleRoomEnded: () => void;
+  resetGame: () => void;
+  setError: (error: string) => void;
+  clearError: () => void;
+};
 
 function balancedAllocation(total: number): RoundAllocation {
   const base = Math.floor(total / 4);
@@ -24,166 +58,250 @@ function balancedAllocation(total: number): RoundAllocation {
   };
 }
 
-const INITIAL_STATE: GameState = {
-  phase: GamePhase.NICKNAME,
-  sessionId: null,
-  nickname: '',
-  className: '',
-  currentRound: 1,
-  allocations: balancedAllocation(BASE_BUDGET),
-  borrowedAmount: 0,
-  budgetForRound: BASE_BUDGET,
-  debtOutstanding: 0,
-  autonomyIndex: 0,
-  roundHistories: [],
-  scores: [],
-  finalResult: null,
-  error: null,
-  isLoading: false,
-};
+function emptyAllocation(): RoundAllocation {
+  return {
+    education: 0,
+    innovation: 0,
+    infrastructure: 0,
+    fdi: 0,
+  };
+}
 
-export const useGameStore = create<GameState & GameActions>((set, get) => ({
-  ...INITIAL_STATE,
+function initialState(): GameState {
+  return {
+    phase: GamePhase.PORTAL,
+    session: null,
+    allocations: emptyAllocation(),
+    borrowedAmount: 0,
+    pendingResolution: null,
+    pendingSubmissionId: null,
+    finalResult: null,
+    seenShock: false,
+    isLoading: false,
+    error: null,
+  };
+}
 
-  setNickname: (nickname) => set({ nickname }),
-  setClassName: (className) => set({ className }),
+function createSubmissionId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
-  startSession: async () => {
-    const { nickname, className } = get();
-    if (!nickname.trim()) {
-      set({ error: 'Hãy nhập tên hiển thị trước khi bắt đầu nhiệm kỳ.' });
-      return;
-    }
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
-    set({ isLoading: true, error: null });
-    try {
-      const response = await api.createSession(nickname.trim(), className.trim());
-      set({
-        sessionId: response.sessionId,
-        currentRound: 1,
-        phase: GamePhase.INTRO,
-        allocations: balancedAllocation(BASE_BUDGET),
-        borrowedAmount: 0,
-        budgetForRound: BASE_BUDGET,
-        debtOutstanding: 0,
-        autonomyIndex: 0,
-        isLoading: false,
-      });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Không thể tạo phiên mô phỏng. Vui lòng thử lại.',
-        isLoading: false,
-      });
-    }
-  },
+export const useGameStore = create<GameState & GameActions>()(
+  persist(
+    (set, get) => ({
+      ...initialState(),
 
-  startTerm: () => set({ phase: GamePhase.PLAYING, error: null }),
+      loadSession: (session, roomInProgress = false) => {
+        const current = get();
+        const belongsToCurrentSession = current.session?.sessionId === session.sessionId;
+        if (belongsToCurrentSession && current.pendingResolution) {
+          set({ session, finalResult: session.finalResult });
+          return;
+        }
+        let phase = GamePhase.LOBBY;
+        if (session.completed && session.finalResult) phase = GamePhase.RESULT;
+        else if (session.histories.length >= 4) phase = GamePhase.DEBRIEF;
+        else if (roomInProgress) {
+          phase = session.histories.length === 0 ? GamePhase.INTRO : GamePhase.PLAYING;
+        }
+        set({
+          session,
+          phase,
+          allocations: emptyAllocation(),
+          borrowedAmount: 0,
+          pendingResolution: null,
+          pendingSubmissionId: null,
+          finalResult: session.finalResult,
+          seenShock: session.histories.some((history) => Boolean(history.shock)),
+          error: null,
+        });
+      },
 
-  updateAllocation: (field, value) => {
-    const { allocations, budgetForRound, borrowedAmount } = get();
-    const available = budgetForRound + borrowedAmount;
-    const otherTotal = Object.entries(allocations)
-      .filter(([key]) => key !== field)
-      .reduce((sum, [, allocation]) => sum + allocation, 0);
-    const next = Math.max(0, Math.min(available - otherTotal, Math.round(value)));
-    set({ allocations: { ...allocations, [field]: next } });
-  },
+      startTerm: () => {
+        const { session, seenShock } = get();
+        if (!session) return;
+        const shouldShowShock =
+          !seenShock && session.currentRound === session.shockRound;
+        set({ phase: shouldShowShock ? GamePhase.SHOCK : GamePhase.PLAYING, error: null });
+      },
 
-  setBorrowedAmount: (amount) => {
-    const nextBorrowed = Math.max(0, Math.min(MAX_BORROW, Math.round(amount)));
-    set({ borrowedAmount: nextBorrowed });
-  },
+      dismissShock: () => set({ seenShock: true, phase: GamePhase.PLAYING }),
 
-  showEvent: () => set({ phase: GamePhase.EVENT, error: null }),
+      updateAllocation: (field, value) => {
+        const { allocations, session, borrowedAmount } = get();
+        if (!session) return;
+        const available = session.budgetForRound + borrowedAmount;
+        const otherTotal = Object.entries(allocations)
+          .filter(([key]) => key !== field)
+          .reduce((sum, [, allocation]) => sum + allocation, 0);
+        const next = Math.max(0, Math.min(available - otherTotal, Math.round(value)));
+        set({ allocations: { ...allocations, [field]: next } });
+      },
 
-  submitRound: async (choice: PolicyChoice) => {
-    const { sessionId, currentRound, allocations, borrowedAmount, budgetForRound } = get();
-    if (!sessionId) {
-      set({ error: 'Phiên mô phỏng không hợp lệ. Hãy bắt đầu lại.' });
-      return;
-    }
+      balanceAllocation: () => {
+        const { session, borrowedAmount } = get();
+        if (!session) return;
+        set({
+          allocations: balancedAllocation(session.budgetForRound + borrowedAmount),
+          error: null,
+        });
+      },
 
-    const total = Object.values(allocations).reduce((sum, value) => sum + value, 0);
-    const available = budgetForRound + borrowedAmount;
-    if (total !== available) {
-      set({ error: `Bạn cần phân bổ đủ ${available} RP trước khi xác nhận chính sách.` });
-      return;
-    }
+      clearAllocation: () => set({ allocations: emptyAllocation(), error: null }),
 
-    set({ isLoading: true, error: null });
-    try {
-      const response = await api.submitRound(sessionId, {
-        roundNumber: currentRound,
-        allocation: { ...allocations },
-        borrowedAmount,
-        eventChoice: choice,
-      });
+      setBorrowedAmount: (value) => {
+        const { session } = get();
+        if (!session) return;
+        const max = Math.floor(session.budgetForRound * 0.5);
+        set({ borrowedAmount: Math.max(0, Math.min(max, Math.round(value))) });
+      },
 
-      const { roundHistories, scores, autonomyIndex, debtOutstanding } = get();
-      const nextAutonomy = response.autonomyIndex ?? autonomyIndex;
-      const nextDebt = response.debtOutstanding ?? debtOutstanding + borrowedAmount;
-      const history = {
-        roundNumber: currentRound,
-        allocation: { ...allocations },
-        score: response.score,
-        dependencyPenalty: response.dependencyPenalty,
-        feedback: response.feedback,
-        budgetForRound,
-        borrowedAmount,
-        debtOutstanding: nextDebt,
-        autonomyIndex: nextAutonomy,
-        eventChoice: choice,
-      };
-      const isLastRound = currentRound === 4;
-      const nextBudget = response.budgetForRound ?? BASE_BUDGET + Math.floor(response.score / 10);
+      showEvent: () => set({ phase: GamePhase.EVENT, error: null }),
+      returnToAllocation: () => set({ phase: GamePhase.PLAYING, error: null }),
 
-      set({
-        roundHistories: [...roundHistories, history],
-        scores: [...scores, response.score],
-        currentRound: isLastRound ? currentRound : currentRound + 1,
-        allocations: isLastRound ? allocations : balancedAllocation(nextBudget),
-        borrowedAmount: 0,
-        budgetForRound: nextBudget,
-        autonomyIndex: nextAutonomy,
-        debtOutstanding: nextDebt,
-        phase: isLastRound ? GamePhase.COUNTDOWN : GamePhase.PLAYING,
-        isLoading: false,
-      });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Không thể ghi nhận quyết định. Vui lòng thử lại.',
-        isLoading: false,
-      });
-    }
-  },
+      submitRound: async (choice) => {
+        const { session, allocations, borrowedAmount } = get();
+        const { playerToken } = useRoomStore.getState();
+        if (!session || !playerToken) {
+          set({ error: 'Phiên người chơi không hợp lệ. Hãy vào lại phòng.' });
+          return;
+        }
+        const available = session.budgetForRound + borrowedAmount;
+        const total = Object.values(allocations).reduce((sum, value) => sum + value, 0);
+        if (total !== available) {
+          set({ error: `Bạn còn ${Math.abs(available - total)} RP chưa được phân bổ.` });
+          return;
+        }
 
-  nextRound: () => set({ phase: GamePhase.PLAYING, error: null }),
-  showDebrief: () => set({ phase: GamePhase.DEBRIEF }),
+        const submissionId = get().pendingSubmissionId ?? createSubmissionId();
+        set({ isLoading: true, error: null, pendingSubmissionId: submissionId });
+        try {
+          const resolution = await getGameGateway().submitRound(
+            session.sessionId,
+            playerToken,
+            {
+              submissionId,
+              roundNumber: session.currentRound,
+              stateVersion: session.stateVersion,
+              allocation: { ...allocations },
+              borrowedAmount,
+              eventChoice: choice,
+            },
+          );
+          const alreadyRecorded = session.histories.some(
+            (history) => history.submissionId === resolution.submissionId,
+          );
+          const nextSession: SessionSnapshot = {
+            ...session,
+            currentRound: resolution.nextRound ?? 4,
+            stateVersion: resolution.stateVersion,
+            budgetForRound: resolution.nextBudget,
+            pendingEducationShare:
+              resolution.allocation.education /
+              Object.values(resolution.allocation).reduce((sum, value) => sum + value, 0),
+            metrics: resolution.metricsAfter,
+            histories: alreadyRecorded
+              ? session.histories
+              : [...session.histories, resolution],
+            locksDependent: resolution.locksDependent,
+          };
+          set({
+            session: nextSession,
+            pendingResolution: resolution,
+            pendingSubmissionId: null,
+            phase: GamePhase.ROUND_REPORT,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            error: errorMessage(error, 'Không thể ghi nhận quyết định. Vui lòng thử lại.'),
+            isLoading: false,
+          });
+        }
+      },
 
-  completeGame: async () => {
-    const { sessionId } = get();
-    if (!sessionId) {
-      set({ error: 'Phiên mô phỏng không hợp lệ.' });
-      return;
-    }
+      continueFromReport: () => {
+        const { session, pendingResolution, seenShock } = get();
+        if (!session || !pendingResolution) return;
+        if (pendingResolution.nextRound === null) {
+          set({
+            pendingResolution: null,
+            phase: GamePhase.COUNTDOWN,
+            allocations: emptyAllocation(),
+            borrowedAmount: 0,
+          });
+          return;
+        }
+        const shouldShowShock =
+          !seenShock && pendingResolution.nextRound === session.shockRound;
+        set({
+          pendingResolution: null,
+          phase: shouldShowShock ? GamePhase.SHOCK : GamePhase.PLAYING,
+          allocations: emptyAllocation(),
+          borrowedAmount: 0,
+          error: null,
+        });
+      },
 
-    set({ isLoading: true, error: null });
-    try {
-      const result: CompleteResponse = await api.completeSession(sessionId);
-      set({ finalResult: result, phase: GamePhase.RESULT, isLoading: false });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Không thể xác định kết quả phiên mô phỏng.',
-        isLoading: false,
-      });
-    }
-  },
+      showDebrief: () => set({ phase: GamePhase.DEBRIEF }),
 
-  resetGame: () => set({
-    ...INITIAL_STATE,
-    allocations: balancedAllocation(BASE_BUDGET),
-  }),
+      completeGame: async () => {
+        const { session } = get();
+        const { playerToken } = useRoomStore.getState();
+        if (!session || !playerToken) return;
+        set({ isLoading: true, error: null });
+        try {
+          const result = await getGameGateway().completeSession(
+            session.sessionId,
+            playerToken,
+          );
+          set({
+            finalResult: result,
+            session: { ...session, completed: true, finalResult: result },
+            phase: GamePhase.RESULT,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            error: errorMessage(error, 'Không thể xác định kết cục năm 2030.'),
+            isLoading: false,
+          });
+        }
+      },
 
-  setError: (error) => set({ error }),
-  clearError: () => set({ error: null }),
-}));
+      showRoomResult: () => set({ phase: GamePhase.ROOM_RESULT, error: null }),
+      showPersonalResult: () => {
+        const { finalResult, session } = get();
+        if (finalResult && session) set({ phase: GamePhase.RESULT, error: null });
+      },
+
+      handleRoomEnded: () => {
+        const { phase } = get();
+        if (phase !== GamePhase.RESULT) set({ phase: GamePhase.ROOM_RESULT });
+      },
+
+      resetGame: () => set({ ...initialState() }),
+      setError: (error) => set({ error }),
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: 'mln2030-game-store',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        phase: state.phase,
+        session: state.session,
+        allocations: state.allocations,
+        borrowedAmount: state.borrowedAmount,
+        pendingResolution: state.pendingResolution,
+        pendingSubmissionId: state.pendingSubmissionId,
+        finalResult: state.finalResult,
+        seenShock: state.seenShock,
+      }),
+    },
+  ),
+);

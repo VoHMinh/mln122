@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useRef, useMemo } from 'react';
+import useReducedMotion from '@/hooks/useReducedMotion';
 
 interface CircuitBackgroundProps {
   className?: string;
@@ -112,15 +113,7 @@ export default function CircuitBackground({
   intensity = 1,
 }: CircuitBackgroundProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  const prefersReducedMotion = useReducedMotion();
 
   const { lines, nodes } = useMemo(() => generateCircuit(1920, 1080, 42), []);
 

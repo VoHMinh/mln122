@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ReferenceTrajectories } from '@/types';
-import { getReferenceTrajectories } from '@/lib/api';
+import { getGameGateway } from '@/lib/game-gateway';
 
 interface ResultChartProps {
   playerScores: number[];
@@ -126,7 +126,7 @@ export default function ResultChart({ playerScores }: ResultChartProps) {
 
   useEffect(() => {
     let cancelled = false;
-    getReferenceTrajectories()
+    getGameGateway().getReferenceTrajectories()
       .then((data) => {
         if (!cancelled && data) setRefs(data);
       })
@@ -151,11 +151,11 @@ export default function ResultChart({ playerScores }: ResultChartProps) {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="game2-chart-heading mb-2 flex flex-wrap items-end justify-between gap-3">
         <div><p className="game-overline">Đối chiếu mô phỏng</p><h3 className="mt-1 font-display text-xl font-semibold text-[#eff7f8]">Quỹ đạo năng suất</h3></div>
         <p className="max-w-sm text-right text-[0.72rem] leading-5 text-[#819aa2]">Các tuyến tham chiếu là thang minh họa học tập, không phải chuỗi số liệu quốc gia.</p>
       </div>
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={205}>
         <LineChart
           data={chartData}
           margin={{ top: 5, right: 20, left: 10, bottom: 5 }}

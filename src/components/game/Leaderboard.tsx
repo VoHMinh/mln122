@@ -1,99 +1,131 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { RefreshCw, Trophy } from 'lucide-react';
-import type { LeaderboardEntry } from '@/types';
-import { getLeaderboard } from '@/lib/api';
+import { CheckCircle2, ChevronLeft, ChevronRight, Medal, Minus, UsersRound } from 'lucide-react';
+import { getGameGateway } from '@/lib/game-gateway';
+import { useRoomStore } from '@/store/room-store';
+import type { LeaderboardResponse } from '@/types';
 
-const REFRESH_INTERVAL = 10_000;
-const MAX_ENTRIES = 20;
-
-const OUTCOME_BADGES: Record<string, { label: string; className: string }> = {
-  LEAPFROG: { label: 'Nội lực', className: 'border-[#3cc7bd]/35 bg-[#3cc7bd]/10 text-[#3cc7bd]' },
-  DEPENDENT: { label: 'Phụ thuộc', className: 'border-[#e9a35a]/35 bg-[#e9a35a]/10 text-[#e9a35a]' },
-  DISRUPTED: { label: 'Đứt gãy', className: 'border-[#c76e58]/35 bg-[#c76e58]/10 text-[#d89180]' },
+const OUTCOME_LABELS = {
+  LEAPFROG: 'Nội lực',
+  DEPENDENT: 'Phụ thuộc',
+  DISRUPTED: 'Đứt gãy',
 };
 
-function formatTime(isoString: string): string {
-  return new Date(isoString).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-}
-
 export default function Leaderboard() {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { room, playerToken, hostToken } = useRoomStore();
+  const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 5;
 
   const fetchLeaderboard = useCallback(async () => {
+    if (!room) return;
     try {
-      const data = await getLeaderboard();
-      setEntries(data.entries.slice(0, MAX_ENTRIES));
+      setData(
+        await getGameGateway().getLeaderboard(
+          room.roomId,
+          playerToken ?? hostToken ?? undefined,
+        ),
+      );
       setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Không thể tải bảng xếp hạng.');
-    } finally {
-      setIsLoading(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không thể tải bảng xếp hạng.');
     }
-  }, []);
+  }, [hostToken, playerToken, room]);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(fetchLeaderboard, 0);
-    const interval = window.setInterval(fetchLeaderboard, REFRESH_INTERVAL);
+    const initial = window.setTimeout(fetchLeaderboard, 0);
+    const timer = window.setInterval(fetchLeaderboard, 3000);
     return () => {
-      window.clearTimeout(initialLoad);
-      window.clearInterval(interval);
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
     };
   }, [fetchLeaderboard]);
 
-  if (isLoading) {
-    return <div className="grid min-h-40 place-items-center gap-3 text-center"><RefreshCw className="animate-spin text-[#3cc7bd]" size={24} /><p className="text-sm text-[#91a9b0]">Đang đồng bộ kết quả phiên mô phỏng...</p></div>;
-  }
-
   if (error) {
-    return <div className="flex min-h-40 flex-col items-center justify-center gap-3 border border-[#c76e58]/30 bg-[#c76e58]/[0.07] p-6 text-center"><p className="text-sm text-[#d89180]">{error}</p><button type="button" onClick={fetchLeaderboard} className="game-secondary-action">Tải lại</button></div>;
+    return (
+      <div className="game2-leaderboard-error">
+        <p>{error}</p>
+        <button type="button" onClick={fetchLeaderboard} className="game-secondary-action">
+          Tải lại
+        </button>
+      </div>
+    );
   }
-
-  if (entries.length === 0) {
-    return <div className="grid min-h-40 place-items-center border border-dashed border-white/15 p-6 text-center"><p className="max-w-sm text-sm leading-6 text-[#91a9b0]">Chưa có phiên mô phỏng nào hoàn tất. Kết quả đầu tiên sẽ xuất hiện tại đây.</p></div>;
-  }
+  if (!data) return <div className="game2-leaderboard-loading">Đang tổng hợp kết quả phòng...</div>;
+  const totalPages = Math.max(1, Math.ceil(data.entries.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleEntries = data.entries.slice(safePage * pageSize, (safePage + 1) * pageSize);
 
   return (
-    <div>
-      <div className="overflow-x-auto border border-white/10">
-        <table className="w-full min-w-[34rem] text-left">
+    <div className="game2-leaderboard">
+      <div className="game2-room-insights">
+        <div><UsersRound size={16} /><span>Hoàn thành</span><strong>{data.insights.completionCount}/{data.insights.totalPlayers}</strong></div>
+        <div className="is-positive"><span>Nội lực</span><strong>{data.insights.outcomeCounts.LEAPFROG}</strong></div>
+        <div className="is-warning"><span>Phụ thuộc</span><strong>{data.insights.outcomeCounts.DEPENDENT}</strong></div>
+        <div className="is-danger"><span>Đứt gãy</span><strong>{data.insights.outcomeCounts.DISRUPTED}</strong></div>
+      </div>
+
+      <div className="game2-table-wrap">
+        <table>
           <thead>
-            <tr className="border-b border-white/10 bg-white/[0.025]">
-              {['Hạng', 'Người chơi', 'Lớp', 'Điểm', 'Kết cục', 'Hoàn tất'].map((label, index) => <th key={label} className={`${index === 2 || index === 5 ? 'hidden sm:table-cell' : ''} px-3 py-2.5 ${index === 3 ? 'text-right' : ''} font-mono text-[0.62rem] font-semibold uppercase tracking-wider text-[#829aa2]`}>{label}</th>)}
-            </tr>
+            <tr><th>Hạng</th><th>Người chơi</th><th>Tiến độ</th><th>Kết cục</th><th>Điểm</th></tr>
           </thead>
           <tbody>
-            <AnimatePresence mode="popLayout">
-              {entries.map((entry) => {
-                const badge = OUTCOME_BADGES[entry.outcomeType] ?? OUTCOME_BADGES.DISRUPTED;
-                return (
-                  <motion.tr
-                    key={`${entry.nickname}-${entry.completedAt}`}
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                    className={`border-b border-white/[0.07] transition-colors hover:bg-white/[0.035] ${entry.rank === 1 ? 'border-l-2 border-l-[#e9a35a] bg-[#e9a35a]/[0.035]' : ''}`}
-                  >
-                    <td className="px-3 py-3 font-mono text-sm font-bold text-[#eff7f8]">#{entry.rank}</td>
-                    <td className="px-3 py-3 font-display text-sm font-semibold text-[#dce9ea]">{entry.nickname}</td>
-                    <td className="hidden px-3 py-3 text-xs text-[#8fa7ae] sm:table-cell">{entry.className || '—'}</td>
-                    <td className="px-3 py-3 text-right font-mono text-sm font-bold tabular-nums text-[#3cc7bd]">{entry.finalScore.toFixed(1)}</td>
-                    <td className="px-3 py-3"><span className={`inline-flex border px-2 py-1 font-mono text-[0.58rem] font-bold uppercase tracking-[0.05em] ${badge.className}`}>{badge.label}</span></td>
-                    <td className="hidden px-3 py-3 text-right font-mono text-xs text-[#8fa7ae] sm:table-cell">{formatTime(entry.completedAt)}</td>
-                  </motion.tr>
-                );
-              })}
-            </AnimatePresence>
+            {visibleEntries.map((entry) => (
+              <tr key={entry.sessionId}>
+                <td>
+                  {entry.rank && entry.rank <= 3
+                    ? <Medal size={16} />
+                    : entry.rank ?? <Minus size={14} />}
+                </td>
+                <td><strong>{entry.nickname}</strong><small>{entry.className || '—'}</small></td>
+                <td>
+                  {entry.completed
+                    ? <span className="game2-complete"><CheckCircle2 size={14} /> Hoàn thành</span>
+                    : <span>Chưa hoàn thành</span>}
+                </td>
+                <td>{entry.outcomeType ? OUTCOME_LABELS[entry.outcomeType] : '—'}</td>
+                <td><strong>{entry.finalScore?.toFixed(1) ?? '—'}</strong></td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 flex items-center justify-center gap-2 text-center text-xs text-[#819aa2]"><Trophy size={14} className="text-[#e9a35a]" />Bảng phiên mô phỏng tự cập nhật mỗi 10 giây</p>
+
+      {totalPages > 1 && (
+        <div className="game2-table-pagination">
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            disabled={safePage === 0}
+            aria-label="Trang xếp hạng trước"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <span>Trang {safePage + 1}/{totalPages}</span>
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+            disabled={safePage === totalPages - 1}
+            aria-label="Trang xếp hạng sau"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      )}
+
+      <div className="game2-common-choices">
+        <span>Lựa chọn phổ biến</span>
+        {data.insights.commonChoices.map((item) => (
+          <div key={item.roundNumber}>
+            <small>Vòng {item.roundNumber}</small>
+            <strong>{item.choice ?? '—'}</strong>
+            <em>{item.count} người</em>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

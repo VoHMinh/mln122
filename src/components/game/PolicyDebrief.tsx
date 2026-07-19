@@ -1,52 +1,89 @@
 'use client';
 
-import { ArrowRight, CircleAlert, Network } from 'lucide-react';
+import { ArrowRight, CircleAlert, GitBranch, Network, Sparkles } from 'lucide-react';
 import { useGameStore } from '@/store/game-store';
 import { getPolicyStage } from '@/lib/game-scenarios';
 
-function reflectionFor(round: number, choice: string) {
-  if (round === 2 && choice === 'A') return 'Dòng vốn vào nhanh đã đổi lấy điều gì khi R&D nội địa chưa đủ dày?';
-  if (round === 3 && choice === 'C') return 'Việc chuyển nguồn lực sang R&D ở thời điểm cú sốc đã thay đổi năng lực tự chủ ra sao?';
-  if (round === 4 && choice === 'C') return 'Vì sao điểm tăng ngắn hạn từ chuyển giao bên ngoài vẫn không thay thế được quyền làm chủ công nghệ?';
-  return 'Lựa chọn ở chặng này đã mở rộng hay thu hẹp nguồn lực cho chặng kế tiếp như thế nào?';
-}
-
 export default function PolicyDebrief() {
-  const { roundHistories, autonomyIndex, debtOutstanding, completeGame, isLoading } = useGameStore();
+  const { session, completeGame, isLoading } = useGameStore();
+  if (!session) return null;
+
+  const turningPointIds = [...session.histories]
+    .map((history) => ({
+      id: history.roundNumber,
+      magnitude:
+        Math.abs(history.roundGain) +
+        history.metricDeltas.reduce((sum, item) => sum + Math.abs(item.delta), 0),
+    }))
+    .sort((a, b) => b.magnitude - a.magnitude)
+    .slice(0, 2)
+    .map((item) => item.id);
 
   return (
-    <section className="game-debrief-scene">
-      <div className="max-w-3xl">
-        <div className="game-overline"><Network size={15} strokeWidth={1.5} />Hồ sơ chính sách 2025-2030</div>
-        <h2 className="mt-3 font-display text-[clamp(2rem,4vw,3.8rem)] font-semibold leading-[1.05] text-[#f2f7f7]">Bốn lựa chọn đã tạo nên một quỹ đạo.</h2>
-        <p className="mt-4 max-w-2xl text-[0.95rem] leading-7 text-[#aebfc8]">Trước khi xác định kết cục, hãy nhìn lại cách từng phản ứng đã tác động đến năng lực tự chủ và khoản nợ công nghệ còn lại.</p>
+    <section className="game2-debrief">
+      <header>
+        <p className="game-overline"><Network size={15} /> Hồ sơ chính sách 2025-2030</p>
+        <h1>Bốn quyết định đã tạo nên một quỹ đạo.</h1>
+        <p>
+          Đọc từ trái sang phải để thấy mỗi lựa chọn đã mở rộng hoặc thu hẹp
+          không gian chính sách của chặng tiếp theo như thế nào.
+        </p>
+      </header>
+
+      <div className="game2-debrief-metrics">
+        <div><span>Năng suất</span><strong>{session.metrics.productivity.toFixed(1)}</strong></div>
+        <div><span>Tự chủ</span><strong>{session.metrics.autonomy.toFixed(1)}</strong></div>
+        <div><span>Hấp thụ</span><strong>{session.metrics.absorption.toFixed(1)}</strong></div>
+        <div><span>Nợ còn lại</span><strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong></div>
       </div>
 
-      <div className="game-debrief-metrics mt-8">
-        <div><span>Chỉ số tự chủ</span><strong>{autonomyIndex.toFixed(1)}</strong></div>
-        <div><span>Nợ công nghệ</span><strong>{debtOutstanding.toFixed(0)} RP</strong></div>
-        <div><span>Chặng hoàn tất</span><strong>{roundHistories.length}/4</strong></div>
-      </div>
-
-      <ol className="game-policy-timeline mt-10">
-        {roundHistories.map((history) => {
+      <ol className="game2-policy-timeline">
+        {session.histories.map((history) => {
           const stage = getPolicyStage(history.roundNumber);
           const choice = stage.options.find((option) => option.id === history.eventChoice);
+          const turningPoint = turningPointIds.includes(history.roundNumber);
           return (
-            <li key={history.roundNumber}>
-              <div className="game-policy-marker">{history.roundNumber}</div>
+            <li key={history.roundNumber} className={turningPoint ? 'is-turning-point' : ''}>
+              <div className="game2-policy-marker">{history.roundNumber}</div>
               <div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><p className="game-overline">{stage.period}</p><span className="font-mono text-[10px] text-[#e9a35a]">Lựa chọn {history.eventChoice}</span></div>
-                <h3>{stage.title}</h3>
-                <p className="text-[#d6e3e5]"><strong>{choice?.title}</strong> — {choice?.summary}</p>
-                <p className="game-reflection"><CircleAlert size={15} />{reflectionFor(history.roundNumber, history.eventChoice)}</p>
+                <div className="game2-timeline-meta">
+                  <span>{stage.period}</span>
+                  <i>Lựa chọn {history.eventChoice}</i>
+                  {turningPoint && <b><Sparkles size={13} /> Bước ngoặt</b>}
+                </div>
+                <h2>{choice?.title}</h2>
+                <p>{history.explanation}</p>
+                <div className="game2-timeline-impact">
+                  <strong>{history.roundGain >= 0 ? '+' : ''}{history.roundGain.toFixed(1)} năng suất</strong>
+                  <span>Tự chủ {history.metricsAfter.autonomy.toFixed(1)}</span>
+                  <span>Nợ {history.metricsAfter.debtOutstanding.toFixed(0)} RP</span>
+                </div>
               </div>
             </li>
           );
         })}
       </ol>
 
-      <button type="button" disabled={isLoading} onClick={completeGame} className="game-primary-action mt-10 disabled:opacity-50">Xác định kết cục năm 2030 <ArrowRight size={17} /></button>
+      <div className="game2-debrief-reflection">
+        <GitBranch size={18} />
+        <div>
+          <span>Câu hỏi phản tư</span>
+          <p>
+            Quyết định nào tạo ra con số tốt nhất trước mắt nhưng đồng thời làm
+            giảm quyền lựa chọn của bạn ở chặng sau?
+          </p>
+        </div>
+        <CircleAlert size={17} />
+      </div>
+
+      <button
+        type="button"
+        disabled={isLoading}
+        onClick={completeGame}
+        className="game-primary-action game-cursor-target"
+      >
+        Xác định kết cục năm 2030 <ArrowRight size={17} />
+      </button>
     </section>
   );
 }

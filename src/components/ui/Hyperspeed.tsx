@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { BloomEffect, EffectComposer, EffectPass, RenderPass, SMAAEffect, SMAAPreset } from 'postprocessing';
+import { BloomEffect, EffectComposer, EffectPass, RenderPass } from 'postprocessing';
 
 const DEFAULT_EFFECT_OPTIONS = {
   onSpeedUp: () => {},
@@ -42,10 +42,8 @@ const DEFAULT_EFFECT_OPTIONS = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }: { effectOptions?: any }) => {
   const hyperspeed = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const appRef = useRef<any>(null);
 
   useEffect(() => {
@@ -88,7 +86,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }: { effectOptions?
 
     const nsin = (val: number) => Math.sin(val) * 0.5 + 0.5;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const distortions: Record<string, any> = {
       mountainDistortion: {
         uniforms: mountainUniforms,
@@ -348,7 +345,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }: { effectOptions?
       return Math.random() * base;
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pickRandom = (arr: any) => {
       if (Array.isArray(arr)) return arr[Math.floor(Math.random() * arr.length)];
       return arr;
@@ -526,7 +522,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }: { effectOptions?
     `;
 
     /* --- Helper classes --- */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     class CarLights {
       webgl: any; options: any; colors: any; speed: any; fade: any; mesh: any;
       constructor(webgl: any, options: any, colors: any, speed: any, fade: any) {
@@ -581,7 +576,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }: { effectOptions?
       update(time: number) { this.mesh.material.uniforms.uTime.value = time; }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     class LightsSticks {
       webgl: any; options: any; mesh: any;
       constructor(webgl: any, options: any) { this.webgl = webgl; this.options = options; }
@@ -623,7 +617,6 @@ const Hyperspeed = ({ effectOptions = DEFAULT_EFFECT_OPTIONS }: { effectOptions?
       update(time: number) { this.mesh.material.uniforms.uTime.value = time; }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     class Road {
       webgl: any; options: any; uTime: any; leftRoadWay: any; rightRoadWay: any; island: any;
       constructor(webgl: any, options: any) { this.webgl = webgl; this.options = options; this.uTime = { value: 0 }; }

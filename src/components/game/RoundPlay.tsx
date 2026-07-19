@@ -10,8 +10,11 @@ import {
   GraduationCap,
   Handshake,
   Landmark,
+  ListRestart,
   Scale,
   ServerCog,
+  ShieldCheck,
+  Split,
 } from 'lucide-react';
 import { useGameStore } from '@/store/game-store';
 import type { RoundAllocation } from '@/types';
@@ -31,97 +34,237 @@ function formatValue(value: number) {
 export default function RoundPlay() {
   const [borrowingOpen, setBorrowingOpen] = useState(false);
   const {
-    currentRound,
+    session,
     allocations,
     borrowedAmount,
-    budgetForRound,
-    debtOutstanding,
-    autonomyIndex,
-    scores,
     updateAllocation,
+    balanceAllocation,
+    clearAllocation,
     setBorrowedAmount,
     showEvent,
     setError,
   } = useGameStore();
-  const stage = getPolicyStage(currentRound);
-  const available = budgetForRound + borrowedAmount;
-  const total = useMemo(() => Object.values(allocations).reduce((sum, value) => sum + value, 0), [allocations]);
+
+  const total = useMemo(
+    () => Object.values(allocations).reduce((sum, value) => sum + value, 0),
+    [allocations],
+  );
+  if (!session) return null;
+
+  const stage = getPolicyStage(session.currentRound);
+  const available = session.budgetForRound + borrowedAmount;
   const remaining = available - total;
-  const hasFdiRisk = allocations.fdi > available * 0.5 && allocations.innovation < 20;
-  const hasLateEducationRisk = currentRound === 4 && allocations.education > available * 0.35;
+  const maxBorrow = Math.floor((session.budgetForRound * 0.5) / 5) * 5;
+  const fdiShare = available ? allocations.fdi / available : 0;
+  const hasFdiRisk = fdiShare > 0.5 && allocations.innovation < 20;
+  const hasLateEducationRisk =
+    session.currentRound === 4 && allocations.education > available * 0.35;
+  const shockActive =
+    session.currentRound === session.shockRound &&
+    !session.histories.some((history) => history.shock);
 
   const goToEvent = () => {
     if (remaining !== 0) {
-      setError(`Cần phân bổ đủ ${formatValue(available)} RP. Bạn còn ${formatValue(Math.abs(remaining))} RP ${remaining > 0 ? 'chưa dùng' : 'vượt ngân sách'}.`);
+      setError(
+        remaining > 0
+          ? `Bạn còn ${formatValue(remaining)} RP chưa phân bổ.`
+          : `Bạn đang vượt ngân sách ${formatValue(Math.abs(remaining))} RP.`,
+      );
       return;
     }
     showEvent();
   };
 
+  const metrics = [
+    { label: 'Năng suất', value: session.metrics.productivity, icon: Gauge },
+    { label: 'Tự chủ', value: session.metrics.autonomy, icon: BrainCircuit },
+    { label: 'Hấp thụ', value: session.metrics.absorption, icon: GraduationCap },
+    { label: 'Chống chịu', value: session.metrics.resilience, icon: ShieldCheck },
+  ];
+
   return (
-    <section className="game-play-scene">
-      <header className="game-stage-header">
-        <div><p className="game-overline">Giai đoạn {String(currentRound).padStart(2, '0')} · {stage.period}</p><h1>{stage.title}</h1></div>
-        <div className="game-stage-status"><span>{stage.yearLabel}</span><i /><span>{currentRound}/4</span></div>
+    <section className="game2-play">
+      <header className="game2-stage-header">
+        <div>
+          <p className="game-overline">
+            Giai đoạn {String(session.currentRound).padStart(2, '0')} · {stage.period}
+          </p>
+          <h1>{stage.title}</h1>
+          <p>{stage.premise}</p>
+        </div>
+        <div className="game2-stage-index">
+          <span>{stage.yearLabel}</span>
+          <strong>{session.currentRound}/4</strong>
+        </div>
       </header>
 
-      <div className="mt-7 grid gap-7 xl:grid-cols-[minmax(16rem,0.7fr)_minmax(0,1.3fr)] xl:gap-10">
-        <aside className="game-stage-brief">
-          <div className="flex items-center gap-2 text-[#3cc7bd]"><Landmark size={17} strokeWidth={1.5} /><span className="game-overline">Bản tin điều hành</span></div>
-          <p className="mt-4 font-display text-2xl font-medium leading-tight text-[#f2f7f7]">{stage.premise}</p>
-          <p className="mt-5 text-sm leading-6 text-[#9eb4bc]">Ở cuối chặng, bạn sẽ phải chọn một phản ứng chính sách. Phân bổ hôm nay quyết định mức độ linh hoạt của lựa chọn đó.</p>
+      <div className="game2-run-metrics">
+        {metrics.map(({ label, value, icon: Icon }) => (
+          <div key={label}>
+            <Icon size={15} />
+            <span>{label}</span>
+            <strong>{value.toFixed(1)}</strong>
+          </div>
+        ))}
+        <div className={session.metrics.debtOutstanding > 0 ? 'is-warning' : ''}>
+          <Coins size={15} />
+          <span>Nợ tồn</span>
+          <strong>{session.metrics.debtOutstanding.toFixed(0)} RP</strong>
+        </div>
+      </div>
 
-          <dl className="game-run-metrics">
-            <div><dt><Gauge size={15} />Năng suất tích lũy</dt><dd>{scores.length ? scores[scores.length - 1].toFixed(1) : '0.0'}</dd></div>
-            <div><dt><BrainCircuit size={15} />Chỉ số tự chủ</dt><dd>{autonomyIndex.toFixed(1)}</dd></div>
-            <div><dt><Coins size={15} />Nợ công nghệ</dt><dd>{formatValue(debtOutstanding)} RP</dd></div>
-          </dl>
-
-          <div className="game-budget-summary">
-            <div><span>Nguồn lực cơ sở</span><strong>{formatValue(budgetForRound)} RP</strong></div>
-            <div><span>Vay công nghệ</span><strong className={borrowedAmount ? 'text-[#e9a35a]' : ''}>{borrowedAmount ? `+${formatValue(borrowedAmount)} RP` : 'Không'}</strong></div>
-            <div><span>Khả dụng chặng này</span><strong>{formatValue(available)} RP</strong></div>
+      <div className="game2-play-layout">
+        <aside className="game2-brief-column">
+          <p className="game-overline"><Landmark size={15} /> Bản tin điều hành</p>
+          <div className="game2-budget-readout">
+            <div><span>Ngân sách cơ sở</span><strong>{session.budgetForRound} RP</strong></div>
+            <div><span>Vay kỳ này</span><strong>{borrowedAmount ? `+${borrowedAmount}` : '0'} RP</strong></div>
+            <div><span>Đang phân bổ</span><strong>{total}/{available} RP</strong></div>
           </div>
 
-          <button type="button" onClick={() => setBorrowingOpen((value) => !value)} className="game-secondary-action mt-5"><Scale size={16} />{borrowingOpen ? 'Đóng tùy chọn vay' : 'Tùy chọn vay công nghệ'}</button>
-          {borrowingOpen && (
-            <div className="game-borrow-control">
-              <div><p>Vay thêm nguồn lực</p><strong>{borrowedAmount} RP</strong></div>
-              <input type="range" min="0" max="50" step="5" value={borrowedAmount} onChange={(event) => setBorrowedAmount(Number(event.target.value))} aria-label="Vay thêm nguồn lực công nghệ" />
-              <p>Nợ bị tính lãi ở chặng sau và trừ trực tiếp khi xác định kết cục năm 2030.</p>
+          {shockActive && (
+            <div className="game2-context-alert">
+              <CircleAlert size={16} />
+              <p>
+                Biến cố chung đang làm hiệu quả chính sách phụ thuộc mạnh hơn vào
+                năng lực bạn đã tích lũy.
+              </p>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setBorrowingOpen((value) => !value)}
+            className="game-secondary-action game-cursor-target"
+          >
+            <Scale size={16} />
+            {borrowingOpen ? 'Đóng bảng vay' : 'Mở tùy chọn vay'}
+          </button>
+
+          {borrowingOpen && (
+            <div className="game2-borrow">
+              <div><span>Khoản vay</span><strong>{borrowedAmount} RP</strong></div>
+              <input
+                type="range"
+                min="0"
+                max={maxBorrow}
+                step="5"
+                value={borrowedAmount}
+                onChange={(event) => setBorrowedAmount(Number(event.target.value))}
+                aria-label="Khoản vay công nghệ"
+              />
+              <p>
+                Hạn mức {maxBorrow} RP. Nghĩa vụ kỳ sau bằng 120% khoản vay.
+              </p>
+            </div>
+          )}
+
+          <div className="game2-path-note">
+            <span>Phụ thuộc đường dẫn</span>
+            <p>
+              Giáo dục kỳ này phát huy ở kỳ sau. FDI vượt 50% cùng R&D dưới 20
+              trong hai kỳ liên tiếp sẽ kích hoạt hệ số phạt.
+            </p>
+          </div>
         </aside>
 
-        <div className="game-allocation-workspace">
-          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/10 pb-5">
-            <div><p className="game-overline">Bước 1 / 2</p><h2>Phân bổ nguồn lực</h2></div>
-            <div className={`game-rp-counter ${remaining === 0 ? 'is-complete' : ''}`}><span>{remaining === 0 ? 'Đã khóa ngân sách' : 'Còn lại'}</span><strong>{formatValue(Math.abs(remaining))} RP</strong></div>
+        <div className="game2-allocation">
+          <div className="game2-workspace-heading">
+            <div className="game2-workspace-copy">
+              <p className="game-overline">Bước 1 / 2</p>
+              <h2>Phân bổ nguồn lực</h2>
+              <p>
+                Bạn đang xây năng lực cho quốc gia. Mỗi RP đặt vào một lĩnh vực sẽ
+                thay đổi điểm mạnh và giới hạn của chiến lược ở bước kế tiếp.
+              </p>
+            </div>
+            <div className="game2-allocation-tools">
+              <div className={`game2-remaining ${remaining === 0 ? 'is-complete' : ''}`}>
+                <span>{remaining === 0 ? 'Đã phân bổ đủ' : 'Còn phải phân bổ'}</span>
+                <strong>{Math.abs(remaining)} RP</strong>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={balanceAllocation}
+                  className="game2-compact-command game-cursor-target"
+                >
+                  <Split size={14} /> Chia đều
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAllocation}
+                  className="game2-icon-command game-cursor-target"
+                  aria-label="Đặt lại phân bổ về 0"
+                  title="Đặt lại phân bổ về 0"
+                >
+                  <ListRestart size={15} />
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="game-allocation-bar mt-6" aria-label={`Đã phân bổ ${total} trên ${available} RP`}>
-            {INVESTMENT_AREAS.map((area) => <i key={area.key} style={{ width: `${available ? (allocations[area.key as keyof RoundAllocation] / available) * 100 : 0}%`, backgroundColor: area.color }} />)}
+          <div className="game2-allocation-bar" aria-label={`${total}/${available} RP`}>
+            {INVESTMENT_AREAS.map((area) => (
+              <i
+                key={area.key}
+                style={{
+                  width: `${available ? (allocations[area.key as keyof RoundAllocation] / available) * 100 : 0}%`,
+                  backgroundColor: area.color,
+                }}
+              />
+            ))}
             {remaining > 0 && <em style={{ width: `${(remaining / available) * 100}%` }} />}
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-[#849aa3]">{INVESTMENT_AREAS.map((area) => <span key={area.key}><b style={{ color: area.color }}>{area.shortLabel}</b> {allocations[area.key as keyof RoundAllocation]}</span>)}</div>
 
-          <div className="mt-8 space-y-7">
+          <div className="game2-allocation-grid">
             {INVESTMENT_AREAS.map((area) => {
               const key = area.key as keyof RoundAllocation;
               const Icon = AREA_ICONS[key];
               const value = allocations[key];
               return (
-                <div key={key} className="game-allocation-control">
-                  <div className="flex items-start justify-between gap-4"><div className="flex gap-3"><span className="game-area-icon" style={{ color: area.color }}><Icon size={18} strokeWidth={1.5} /></span><div><h3>{area.label}</h3><p>{area.description}</p></div></div><strong style={{ color: area.color }}>{formatValue(value)} <small>RP</small></strong></div>
-                  <input type="range" min="0" max={available} step="1" value={value} onChange={(event) => updateAllocation(key, Number(event.target.value))} aria-label={area.label} style={{ '--game-range-color': area.color, '--game-range-value': `${available ? (value / available) * 100 : 0}%` } as React.CSSProperties} />
+                <div key={key} className="game2-allocation-control">
+                  <div>
+                    <span className="game2-area-icon" style={{ color: area.color }}>
+                      <Icon size={17} />
+                    </span>
+                    <div><h3>{area.label}</h3><p>{area.description}</p></div>
+                    <strong style={{ color: area.color }}>{value}<small> RP</small></strong>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={available}
+                    step="1"
+                    value={value}
+                    onChange={(event) => updateAllocation(key, Number(event.target.value))}
+                    aria-label={area.label}
+                    style={{ '--game-range-color': area.color } as React.CSSProperties}
+                  />
                 </div>
               );
             })}
           </div>
 
-          {(hasFdiRisk || hasLateEducationRisk) && <div className="game-strategy-alert mt-7"><CircleAlert size={17} />{hasFdiRisk ? <p>FDI đang chiếm tỷ trọng lớn khi R&D mỏng. Nếu lặp lại, mô hình sẽ tích lũy rủi ro phụ thuộc công nghệ.</p> : <p>Đầu tư nhân lực ở chặng cuối sẽ không kịp phát huy toàn bộ độ trễ một giai đoạn trước năm 2030.</p>}</div>}
+          {(hasFdiRisk || hasLateEducationRisk) && (
+            <div className="game2-strategy-alert">
+              <CircleAlert size={16} />
+              <p>
+                {hasFdiRisk
+                  ? 'Cấu trúc này tạo một kỳ rủi ro phụ thuộc FDI. Lặp lại ở kỳ sau sẽ kích hoạt hệ số phạt.'
+                  : 'Nhân lực đầu tư ở chặng cuối không còn đủ một kỳ để phát huy trọn vẹn trước năm 2030.'}
+              </p>
+            </div>
+          )}
 
-          <button type="button" onClick={goToEvent} className="game-primary-action game-cursor-target mt-8 w-full justify-center" disabled={remaining !== 0}>Sang bước 2: chọn phản ứng chính sách <ArrowRight size={17} /></button>
+          <button
+            type="button"
+            onClick={goToEvent}
+            disabled={remaining !== 0}
+            className="game-primary-action game-cursor-target game2-allocation-next"
+          >
+            Khóa nguồn lực, sang chọn chiến lược <ArrowRight size={17} />
+          </button>
         </div>
       </div>
     </section>

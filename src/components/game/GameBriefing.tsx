@@ -72,12 +72,12 @@ export default function GameBriefing({ isOpen, onClose }: GameBriefingProps) {
           )}
           {activeTab === 'rules' && (
             <div className="game-briefing-copy">
-              <p className="game-overline">Bốn chặng, hai quyết định mỗi chặng</p>
+              <p className="game-overline">Mỗi chặng có hai quyết định liên kết</p>
               <ol className="game-rule-list">
-                <li><span>01</span><p>Phân bổ toàn bộ nguồn lực hiện có cho nhân lực, R&D, hạ tầng và FDI.</p></li>
-                <li><span>02</span><p>Chọn một phản ứng trước sự kiện chính sách của giai đoạn.</p></li>
-                <li><span>03</span><p>Nhân lực có độ trễ một chặng; R&D cộng dồn vào chỉ số tự chủ.</p></li>
-                <li><span>04</span><p>Bạn có thể vay tối đa 50 RP, nhưng nợ làm giảm nguồn lực chặng sau và trừ ở kết cục.</p></li>
+                <li><span>01</span><p><strong>Xây năng lực:</strong> tự chia toàn bộ RP cho nhân lực, R&amp;D, hạ tầng và FDI. Nút “Chia đều” chỉ là phương án hỗ trợ.</p></li>
+                <li><span>02</span><p><strong>Dùng năng lực:</strong> chọn một chiến lược cho tình huống của giai đoạn. Hiệu quả phụ thuộc vào cấu trúc RP bạn vừa khóa.</p></li>
+                <li><span>03</span><p><strong>Đọc hậu quả:</strong> báo cáo công bố điểm vòng, delta chỉ số, nguyên nhân và phần di sản mang sang vòng sau.</p></li>
+                <li><span>04</span><p><strong>Quản trị độ trễ:</strong> nhân lực phát huy sau một vòng; FDI tạo đà nhanh nhưng có thể tăng phụ thuộc; vay kỳ này phải trả 120% ở kỳ sau.</p></li>
               </ol>
             </div>
           )}
@@ -85,7 +85,12 @@ export default function GameBriefing({ isOpen, onClose }: GameBriefingProps) {
             <div className="game-briefing-copy">
               <p className="game-overline">Đích đến 2030</p>
               <h3>Không chỉ về đích nhanh. Phải về đích bằng nội lực.</h3>
-              <p>Kết cục dựa trên năng suất tích lũy sau bốn giai đoạn và Chỉ số Tự chủ. Năng suất cao nhưng tự chủ thấp vẫn là một nền kinh tế phụ thuộc công nghệ.</p>
+              <p>
+                Hãy nâng đồng thời bốn chỉ báo: Năng suất cho kết quả hiện tại, Tự chủ cho
+                quyền làm chủ công nghệ, Hấp thụ để tiếp nhận tri thức mới và Chống chịu
+                để không gãy quỹ đạo khi biến cố xuất hiện. Năng suất cao nhưng tự chủ thấp
+                vẫn dẫn đến một nền kinh tế phụ thuộc công nghệ.
+              </p>
               <div className="game-outcome-key"><span className="text-[#3cc7bd]">Đạt bằng nội lực</span><span className="text-[#e9a35a]">Về đích chưa tự chủ</span><span className="text-[#d78c55]">Trễ hẹn 2030</span></div>
             </div>
           )}

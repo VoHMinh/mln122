@@ -1,5 +1,4 @@
 export { default as GameContainer } from './GameContainer';
-export { default as NicknameForm } from './NicknameForm';
 export { default as BudgetSlider } from './BudgetSlider';
 export { default as RoundPlay } from './RoundPlay';
 export { default as EventCard } from './EventCard';
