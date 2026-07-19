@@ -31,6 +31,7 @@ export default function GamePortal({ onOpenBriefing, onBeginOnboarding }: Props)
   const [className, setClassName] = useState('');
   const [code, setCode] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [compactAccess, setCompactAccess] = useState(false);
   const { isLoading, error, clearError } = useRoomStore();
 
   const submit = (event: FormEvent) => {
@@ -57,7 +58,7 @@ export default function GamePortal({ onOpenBriefing, onBeginOnboarding }: Props)
   };
 
   return (
-    <section className="game2-portal">
+    <section className={`game2-portal ${compactAccess ? 'is-access-focused' : ''}`}>
       <div className="game2-portal-copy">
         <p className="game-overline">
           <Radio size={14} /> Mô phỏng chính sách realtime
@@ -79,7 +80,14 @@ export default function GamePortal({ onOpenBriefing, onBeginOnboarding }: Props)
         </button>
       </div>
 
-      <form className="game2-access" onSubmit={submit} noValidate>
+      <form
+        className="game2-access"
+        onSubmit={submit}
+        onFocusCapture={(event) => {
+          if (event.target instanceof HTMLInputElement) setCompactAccess(true);
+        }}
+        noValidate
+      >
         <div className="game2-segmented" aria-label="Chọn cách vào trò chơi">
           <button
             type="button"

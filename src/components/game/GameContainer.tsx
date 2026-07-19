@@ -78,6 +78,24 @@ export default function GameContainer() {
   const roomId = room?.roomId;
 
   useEffect(() => {
+    const route = rootRef.current?.closest<HTMLElement>('.game-route');
+    if (!route) return;
+    const viewport = window.visualViewport;
+    const syncViewportHeight = () => {
+      const height = Math.round(viewport?.height ?? window.innerHeight);
+      route.style.setProperty('--game-viewport-height', `${height}px`);
+    };
+    syncViewportHeight();
+    viewport?.addEventListener('resize', syncViewportHeight);
+    window.addEventListener('orientationchange', syncViewportHeight);
+    return () => {
+      viewport?.removeEventListener('resize', syncViewportHeight);
+      window.removeEventListener('orientationchange', syncViewportHeight);
+      route.style.removeProperty('--game-viewport-height');
+    };
+  }, []);
+
+  useEffect(() => {
     if (!roomId) return;
     const subscription = subscribe();
     subscriptionRef.current = subscription;
@@ -128,6 +146,15 @@ export default function GameContainer() {
       { autoAlpha: 1, y: 0, duration: 0.46, ease: 'power3.out', overwrite: true },
     );
   }, { scope: rootRef, dependencies: [phase, room?.status, reducedMotion], revertOnUpdate: true });
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      rootRef.current
+        ?.querySelector<HTMLElement>('.game2-phase > section')
+        ?.scrollTo({ top: 0, left: 0 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [phase, room?.status]);
 
   const displayRound =
     phase === GamePhase.ROUND_REPORT && pendingResolution
